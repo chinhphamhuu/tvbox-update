@@ -296,15 +296,15 @@
             <div id="githubUploadBox" class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs text-slate-300">
-                  Đẩy trực tiếp qua trình duyệt vào <code class="text-sky-400">apk/</code> (Tự động khi bấm Lưu):
+                  Tự động đẩy lên GitHub (Hỗ trợ cả APK nặng <b>100MB – 500MB</b>):
                 </span>
                 <button type="button" id="btnUploadApkToGithub" onclick="uploadSelectedApkToGithub()"
                   class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shrink-0">
-                  Tải APK lên ngay
+                  Đẩy APK trước
                 </button>
               </div>
               <p class="text-[11px] text-slate-400">
-                * Chế độ 1 đẩy qua API trình duyệt phù hợp file <b>dưới 35MB</b>. Với file nặng <b>50MB – 200MB – 2GB</b>, hãy bấm sang <b>Chế độ 2</b> bên cạnh!
+                * Chỉ cần chọn file APK rồi bấm thẳng nút màu xanh <b>"Lưu vào danh sách &amp; Commit lên GitHub"</b> ở dưới. Nếu file nặng 100MB – 500MB, hệ thống sẽ <b>tự động cắt nhỏ từng phần (18MB/phần)</b> đẩy lên GitHub và TV Box tự ghép lại cài đặt!
               </p>
               <div id="githubUploadProgress" class="hidden text-xs font-medium text-amber-400">
                 Đang tải file APK lên GitHub REST API... Vui lòng đợi...
@@ -520,6 +520,8 @@
     let currentUpdateJsonSha = null;   // SHA hiện tại của file update.json trên GitHub
     let selectedApkFile = null;        // File .apk người dùng vừa chọn
     let selectedApkUploaded = false;   // Đánh dấu file .apk vừa chọn đã được đẩy lên GitHub chưa
+    let uploadedApkParts = [];         // Danh sách các phần (part001, part002...) nếu file APK lớn > 18MB
+    let uploadedApkTotalSize = 0;      // Tổng dung lượng byte của file APK vừa đẩy lên
     let currentUploadMode = 'github';  // 'github' hoặc 'direct'
     let boxesMap = {};                 // Dữ liệu nhánh /boxes từ Firebase
 
@@ -729,6 +731,8 @@
 
       selectedApkFile = file;
       selectedApkUploaded = false;
+      uploadedApkParts = [];
+      uploadedApkTotalSize = file.size;
       document.getElementById('inpApkUrl').value = '';
       const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
 
@@ -771,19 +775,11 @@
         summaryName.textContent = `${appLabel} (v${verName} - code ${verCode})`;
         summaryMeta.textContent = `${pkgName} • Dung lượng: ${sizeMb} MB`;
 
-        // Nếu file > 35MB, tự động chuyển sang Chế độ 2 (GitHub Releases 2GB / Cloudflare R2) và điền sẵn link
-        if (file.size > 35 * 1024 * 1024) {
-          setUploadMode('direct');
-          showToast(`File APK nặng ${sizeMb} MB! Đã chuyển sang Chế độ 2 (Kho 2GB) và tự điền sẵn link tải.`, 'warning');
+        const partCount = Math.ceil(file.size / (18 * 1024 * 1024));
+        if (partCount > 1) {
+          showToast(`Đã đọc xong APK (${sizeMb} MB). Khi bấm Lưu, hệ thống sẽ tự chia làm ${partCount} phần để đẩy lên GitHub!`, 'success');
         } else {
-          if (currentUploadMode === 'direct') {
-            const { repo } = getConfig();
-            if (repo) {
-              const releaseSafeName = file.name.replace(/\s+/g, '.');
-              document.getElementById('inpApkUrl').value = `https://github.com/${repo}/releases/download/apk-2gb/${releaseSafeName}`;
-            }
-          }
-          showToast('Đã đọc thành công thông tin từ file APK!', 'success');
+          showToast('Đã đọc thành công thông tin từ file APK! Bấm Lưu để đẩy lên GitHub.', 'success');
         }
       } catch (err) {
         console.error('Lỗi phân tích APK:', err);
@@ -792,18 +788,67 @@
     }
 
     /**
-     * Đẩy file .apk đã chọn lên thư mục apk/ của GitHub Repo qua GitHub REST API
+     * Đẩy 1 file đơn hoặc 1 mảnh (chunk) lên GitHub REST API
      */
-    async function uploadSelectedApkToGithub() {
+    async function putSingleBlobToGithub(repo, token, branch, githubPath, blobOrFile, commitMsg) {
+      const apiUrl = `https://api.github.com/repos/${repo}/contents/${githubPath}`;
+      let existingFileSha = null;
+
+      const checkRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+      if (checkRes.ok) {
+        const existingData = await checkRes.json();
+        existingFileSha = existingData.sha;
+      }
+
+      const base64Content = await fileToBase64(blobOrFile);
+      const bodyPayload = {
+        message: commitMsg,
+        content: base64Content,
+        branch: branch
+      };
+      if (existingFileSha) {
+        bodyPayload.sha = existingFileSha;
+      }
+
+      const putRes = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bodyPayload)
+      });
+
+      if (!putRes.ok) {
+        const errText = await putRes.text();
+        throw new Error(`GitHub API HTTP ${putRes.status}: ${errText}`);
+      }
+
+      return `https://raw.githubusercontent.com/${repo}/${branch}/${githubPath}`;
+    }
+
+    /**
+     * Đẩy file .apk đã chọn lên thư mục apk/ của GitHub Repo.
+     * - Nếu file <= 18MB: Đẩy nguyên 1 file.
+     * - Nếu file > 18MB (VD: 100MB, 200MB, 500MB): Tự động cắt nhỏ thành các phần 18MB (.part001, .part002...)
+     *   để vượt qua giới hạn dung lượng của GitHub, sau đó TV Box tự tải nối lại thành 1 file hoàn chỉnh!
+     */
+    async function uploadSelectedApkToGithub(onProgressCallback = null) {
       if (!selectedApkFile) {
         showToast('Vui lòng chọn 1 file .APK ở khung phía trên trước!', 'warning');
-        return;
+        return false;
       }
 
       const { repo, token, branch } = getConfig();
       if (!repo || !token) {
         showToast('Vui lòng nhập GitHub Repo và Token ở Khu vực 1!', 'error');
-        return;
+        return false;
       }
 
       const btn = document.getElementById('btnUploadApkToGithub');
@@ -812,54 +857,66 @@
       progressText.classList.remove('hidden');
 
       try {
-        // Tạo tên file chuẩn hóa không khoảng trắng
         const safeFileName = selectedApkFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const githubPath = `apk/${safeFileName}`;
-        const apiUrl = `https://api.github.com/repos/${repo}/contents/${githubPath}`;
+        const CHUNK_SIZE = 18 * 1024 * 1024; // 18 MB mỗi phần
+        const totalSize = selectedApkFile.size;
+        const sizeMb = (totalSize / (1024 * 1024)).toFixed(1);
 
-        // Kiểm tra xem file đã tồn tại trên GitHub chưa để lấy SHA ghi đè
-        let existingFileSha = null;
-        const checkRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github+json'
+        if (totalSize <= CHUNK_SIZE) {
+          const msg = `Đang đẩy file APK (${sizeMb} MB) lên GitHub...`;
+          progressText.textContent = msg;
+          if (onProgressCallback) onProgressCallback(msg);
+
+          const rawApkUrl = await putSingleBlobToGithub(
+            repo,
+            token,
+            branch,
+            `apk/${safeFileName}`,
+            selectedApkFile,
+            `Upload APK ${safeFileName} (${sizeMb} MB)`
+          );
+
+          uploadedApkParts = [];
+          uploadedApkTotalSize = totalSize;
+          document.getElementById('inpApkUrl').value = rawApkUrl;
+          selectedApkUploaded = true;
+          showToast('Đã tải file APK lên GitHub thành công!', 'success');
+          return true;
+        } else {
+          // Chia nhỏ file lớn (100MB, 200MB...) thành các phần 18MB
+          const totalParts = Math.ceil(totalSize / CHUNK_SIZE);
+          const partUrls = [];
+
+          for (let partIdx = 0; partIdx < totalParts; partIdx++) {
+            const start = partIdx * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, totalSize);
+            const chunkBlob = selectedApkFile.slice(start, end);
+            const partNumberStr = String(partIdx + 1).padStart(3, '0');
+            const partPath = `apk/${safeFileName}.part${partNumberStr}`;
+            const percent = Math.round(((partIdx + 1) * 100) / totalParts);
+
+            const statusMsg = `Đang đẩy APK lớn (${sizeMb} MB): Phần ${partIdx + 1}/${totalParts} (${percent}%)...`;
+            progressText.textContent = statusMsg;
+            if (onProgressCallback) onProgressCallback(statusMsg);
+
+            const partRawUrl = await putSingleBlobToGithub(
+              repo,
+              token,
+              branch,
+              partPath,
+              chunkBlob,
+              `Upload APK ${safeFileName} part ${partIdx + 1}/${totalParts}`
+            );
+            partUrls.push(partRawUrl);
           }
-        });
-        if (checkRes.ok) {
-          const existingData = await checkRes.json();
-          existingFileSha = existingData.sha;
+
+          uploadedApkParts = partUrls;
+          uploadedApkTotalSize = totalSize;
+          document.getElementById('inpApkUrl').value = partUrls[0];
+          selectedApkUploaded = true;
+          showToast(`Đã đẩy hoàn tất ${totalParts} phần của file APK (${sizeMb} MB) lên GitHub!`, 'success');
+          return true;
         }
-
-        const base64Content = await fileToBase64(selectedApkFile);
-        const bodyPayload = {
-          message: `Upload APK ${safeFileName} via Admin Panel`,
-          content: base64Content,
-          branch: branch
-        };
-        if (existingFileSha) {
-          bodyPayload.sha = existingFileSha;
-        }
-
-        const putRes = await fetch(apiUrl, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github+json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(bodyPayload)
-        });
-
-        if (!putRes.ok) {
-          const errText = await putRes.text();
-          throw new Error(`GitHub API HTTP ${putRes.status}: ${errText}`);
-        }
-
-        const rawApkUrl = `https://raw.githubusercontent.com/${repo}/${branch}/${githubPath}`;
-        document.getElementById('inpApkUrl').value = rawApkUrl;
-        selectedApkUploaded = true;
-        showToast('Đã tải file APK lên GitHub và tự điền link Raw thành công!', 'success');
-        return true;
       } catch (err) {
         console.error('Lỗi upload APK lên GitHub:', err);
         showToast(`Lỗi tải APK lên GitHub: ${err.message}`, 'error');
@@ -1014,9 +1071,9 @@
 
       if ((action === 'install' || action === 'update') && selectedApkFile && !selectedApkUploaded && currentUploadMode === 'github') {
         submitBtn.disabled = true;
-        const sizeMb = (selectedApkFile.size / (1024 * 1024)).toFixed(1);
-        submitText.textContent = `Đang đẩy file APK (${sizeMb} MB) lên GitHub...`;
-        const uploadedOk = await uploadSelectedApkToGithub();
+        const uploadedOk = await uploadSelectedApkToGithub((progressMsg) => {
+          submitText.textContent = progressMsg;
+        });
         submitBtn.disabled = false;
         submitText.textContent = originalBtnText;
         if (!uploadedOk) return;
@@ -1028,6 +1085,10 @@
         return;
       }
 
+      const existingItem = editingIdx >= 0 && editingIdx < currentAppsList.length
+        ? currentAppsList[editingIdx]
+        : currentAppsList.find(a => a.packageName === packageName);
+
       const appItem = {
         name,
         packageName,
@@ -1035,6 +1096,16 @@
         apkUrl,
         action
       };
+
+      if (uploadedApkParts && uploadedApkParts.length > 1) {
+        appItem.apkParts = uploadedApkParts;
+        appItem.totalSize = uploadedApkTotalSize;
+      } else if (uploadedApkTotalSize > 0) {
+        appItem.totalSize = uploadedApkTotalSize;
+      } else if (existingItem && existingItem.apkUrl === apkUrl) {
+        if (existingItem.apkParts) appItem.apkParts = existingItem.apkParts;
+        if (existingItem.totalSize) appItem.totalSize = existingItem.totalSize;
+      }
 
       if (editingIdx >= 0 && editingIdx < currentAppsList.length) {
         currentAppsList[editingIdx] = appItem;
@@ -1067,6 +1138,8 @@
       document.getElementById('btnSubmitAppText').textContent = 'Lưu vào danh sách & Commit lên GitHub';
       selectedApkFile = null;
       selectedApkUploaded = false;
+      uploadedApkParts = [];
+      uploadedApkTotalSize = 0;
     }
 
     function editAppItem(index) {
