@@ -13,6 +13,13 @@
       "versionCode": 12,
       "apkUrl": "https://raw.githubusercontent.com/chinhphamhuu/tvbox-update/main/apk/THtivi_1.1.9.apk",
       "action": "update"
+    },
+    {
+      "name": "K-TV",
+      "packageName": "com.nghenhin24h.vietplaytv",
+      "versionCode": 16,
+      "apkUrl": "https://raw.githubusercontent.com/chinhphamhuu/tvbox-update/main/apk/VietPlayTV_2.5_notify.apk",
+      "action": "update"
     }
   ]
 }
