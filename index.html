@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Hệ Thống Quản Trị APK &amp; Android TV Box Từ Xa</title>
+
+  <!-- TailwindCSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#162033',
+              950: '#090d16'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Thư viện đọc thông tin file .APK trực tiếp trên trình duyệt -->
+  <script src="https://unpkg.com/app-info-parser/dist/app-info-parser.min.js"></script>
+
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-16">
+
+  <!-- ================= HEADER BAR ================= -->
+  <header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-md shadow-sky-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight">
+            TV Box Auto-Updater <span class="text-sky-400">Admin Panel</span>
+          </h1>
+          <p class="text-xs text-slate-400">
+            Quản lý kho ứng dụng <code class="text-sky-300">update.json</code> &amp; điều khiển quyền truy cập TV Box qua Firebase
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 self-end sm:self-auto">
+        <span id="connectionStatusBadge"
+          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          Chưa đồng bộ
+        </span>
+        <button onclick="syncAllData()"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition shadow">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Làm mới dữ liệu
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Thông báo Toast nổi -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Màn hình Khóa Bảo Mật Quản Trị Viên (Chống người lạ truy cập khi Public lên mạng & Bảo vệ GitHub Token) -->
+  <div id="pinLockModal" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+      <div class="w-14 h-14 rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center mx-auto">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-lg font-bold text-white">Xác Thực Quản Trị Viên</h2>
+        <p class="text-xs text-slate-400 mt-1">
+          Nhập Mã PIN Quản trị để tự động mở khóa kết nối GitHub &amp; Firebase trên thiết bị này
+        </p>
+      </div>
+      <form onsubmit="unlockWithPin(event)" class="space-y-3">
+        <input type="password" id="pinInput" inputmode="numeric" placeholder="Nhập mã PIN (6 số)..."
+          class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-center text-lg font-bold tracking-widest text-white focus:outline-none focus:border-sky-500" />
+        <button type="submit"
+          class="w-full py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg transition">
+          Mở Khóa &amp; Đăng Nhập
+        </button>
+      </form>
+      <p id="pinErrorMsg" class="hidden text-xs font-semibold text-red-400">
+        Mã PIN không chính xác, vui lòng thử lại!
+      </p>
+    </div>
+  </div>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-8">
+
+    <!-- ========================================================================= -->
+    <!-- KHU VỰC 1: CẤU HÌNH KẾT NỐI GITHUB & FIREBASE (TỰ LƯU LOCALSTORAGE)       -->
+    <!-- ========================================================================= -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+      <div class="px-5 py-4 bg-slate-800/60 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">
+            KHU VỰC 1
+          </span>
+          <h2 class="text-base sm:text-lg font-bold text-white">
+            Cấu Hình Kết Nối (GitHub &amp; Firebase Realtime Database)
+          </h2>
+        </div>
+        <button onclick="toggleConfigSection()" id="btnToggleConfig"
+          class="text-xs text-slate-400 hover:text-white underline">
+          Thu gọn / Mở rộng
+        </button>
+      </div>
+
+      <div id="configPanelBody" class="p-5 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- GitHub Repo -->
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              GitHub Repo (username/repo) <span class="text-red-400">*</span>
+            </label>
+            <input type="text" id="cfgGithubRepo" value="chinhphamhuu/tvbox-update" placeholder="vd: chinhphamhuu/tvbox-update"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+          </div>
+
+          <!-- GitHub Token -->
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              GitHub Personal Access Token <span class="text-red-400">*</span>
+            </label>
+            <div class="relative">
+              <input type="password" id="cfgGithubToken" value="" placeholder="Mở khóa bằng mã PIN hoặc dán Token..."
+                class="w-full pl-3.5 pr-16 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+              <button type="button" onclick="toggleTokenVisibility()"
+                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 hover:text-white">
+                Hiện/Ẩn
+              </button>
+            </div>
+          </div>
+
+          <!-- GitHub Branch -->
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              Nhánh GitHub (Branch)
+            </label>
+            <input type="text" id="cfgGithubBranch" value="main" placeholder="main"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+          </div>
+
+          <!-- Firebase Database URL -->
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              Firebase Database URL <span class="text-red-400">*</span>
+            </label>
+            <input type="url" id="cfgFirebaseUrl" value="https://tvbox-updater-default-rtdb.firebaseio.com" placeholder="https://tvbox-updater-default-rtdb.firebaseio.com"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+          </div>
+        </div>
+
+        <!-- Thanh hiển thị link Raw update.json & Nút Lưu -->
+        <div class="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-800/80">
+          <div class="flex items-center gap-2 text-xs text-slate-400 break-all">
+            <span class="font-semibold text-slate-300 shrink-0">Link Raw update.json:</span>
+            <code id="rawJsonUrlPreview" class="px-2 py-1 rounded bg-slate-950 text-sky-400 border border-slate-800">
+              Chưa cấu hình GitHub Repo
+            </code>
+            <button type="button" onclick="copyRawUpdateUrl()"
+              class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 shrink-0 transition">
+              Copy Link
+            </button>
+          </div>
+
+          <button type="button" onclick="saveConfigAndLoad()" id="btnSaveAndLoad"
+            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg shadow-sky-500/20 transition shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+            Lưu &amp; Tải dữ liệu
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- KHU VỰC 2: QUẢN LÝ KHO APK & TỰ ĐỘNG CẬP NHẬT update.json                 -->
+    <!-- ========================================================================= -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+      <div class="px-5 py-4 bg-slate-800/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div class="flex items-center gap-2.5">
+          <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            KHU VỰC 2
+          </span>
+          <h2 class="text-base sm:text-lg font-bold text-white">
+            Quản Lý Kho APK &amp; Tự Động Cập Nhật <code class="text-emerald-400">update.json</code>
+          </h2>
+        </div>
+        <span id="apkCountBadge" class="text-xs font-semibold text-slate-400">
+          Tổng số: 0 ứng dụng
+        </span>
+      </div>
+
+      <div class="p-5 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- CỘT TRÁI (5/12): FORM THÊM / SỬA ỨNG DỤNG & BỘ PHÂN TÍCH APK -->
+        <div class="lg:col-span-5 bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 id="formApkTitle" class="text-sm font-bold text-sky-400 uppercase tracking-wider">
+              + Thêm / Cập nhật Ứng dụng vào Kho
+            </h3>
+            <button type="button" onclick="resetApkForm()"
+              class="text-xs text-slate-400 hover:text-white">
+              Làm mới form
+            </button>
+          </div>
+
+          <!-- Hộp chọn file APK để tự động phân tích bằng app-info-parser -->
+          <div class="border-2 border-dashed border-slate-700 hover:border-sky-500 rounded-xl p-4 text-center transition bg-slate-900/50">
+            <input type="file" id="apkFileInput" accept=".apk" class="hidden" onchange="handleApkFileSelected(event)" />
+            <label for="apkFileInput" class="cursor-pointer flex flex-col items-center justify-center space-y-2">
+              <div class="w-12 h-12 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+              <div class="text-sm font-semibold text-white">
+                Chọn file <span class="text-sky-400">.APK</span> từ máy tính / điện thoại
+              </div>
+              <p class="text-xs text-slate-400">
+                Tự động bóc tách Tên ứng dụng, Package Name &amp; Version Code
+              </p>
+            </label>
+
+            <!-- Thông tin file APK sau khi đọc -->
+            <div id="parsedApkPreview" class="hidden mt-3 pt-3 border-t border-slate-800 flex items-center gap-3 text-left">
+              <img id="parsedApkIcon" src="" alt="APK Icon" class="w-11 h-11 rounded-xl bg-slate-800 object-contain shrink-0" />
+              <div class="min-w-0 flex-1">
+                <div id="parsedApkSummaryName" class="text-sm font-bold text-emerald-400 truncate"></div>
+                <div id="parsedApkSummaryMeta" class="text-xs text-slate-400 truncate"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chế độ lưu trữ APK (2 chế độ theo yêu cầu) -->
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Chế độ cung cấp link tải APK (apkUrl)
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="btnModeGithub" onclick="setUploadMode('github')"
+                class="px-3 py-2 rounded-xl text-xs font-bold border border-sky-500 bg-sky-500/20 text-sky-300 transition text-center">
+                Chế độ 1: Đẩy APK lên GitHub
+              </button>
+              <button type="button" id="btnModeDirect" onclick="setUploadMode('direct')"
+                class="px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900 text-slate-400 hover:text-white transition text-center">
+                Chế độ 2: Dán link R2 / Ngoài
+              </button>
+            </div>
+
+            <!-- Khung đẩy file lên thư mục apk/ của GitHub (Chế độ 1) -->
+            <div id="githubUploadBox" class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs text-slate-300">
+                  Đẩy file đã chọn lên thư mục <code class="text-sky-400">apk/</code> của GitHub Repo:
+                </span>
+                <button type="button" id="btnUploadApkToGithub" onclick="uploadSelectedApkToGithub()"
+                  class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shrink-0">
+                  Tải APK lên GitHub ngay
+                </button>
+              </div>
+              <p class="text-[11px] text-slate-400">
+                * Phù hợp file APK nhẹ (&lt; 25MB). Sau khi tải xong, hệ thống tự động điền link Raw vào ô <code class="text-sky-300">apkUrl</code> bên dưới.
+              </p>
+              <div id="githubUploadProgress" class="hidden text-xs font-medium text-amber-400">
+                Đang tải file APK lên GitHub REST API... Vui lòng đợi...
+              </div>
+            </div>
+          </div>
+
+          <!-- Các trường thông tin ứng dụng -->
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">
+                Tên ứng dụng hiển thị (<code class="text-sky-400">name</code>) <span class="text-red-400">*</span>
+              </label>
+              <input type="text" id="inpAppName" placeholder="VD: HDO Box Xem Phim"
+                class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-slate-300 mb-1">
+                  Tên gói (<code class="text-sky-400">packageName</code>) <span class="text-red-400">*</span>
+                </label>
+                <input type="text" id="inpPackageName" placeholder="com.phim.hdobox"
+                  class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono text-white focus:outline-none focus:border-sky-500" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">
+                  Mã bản (<code class="text-sky-400">versionCode</code>) <span class="text-red-400">*</span>
+                </label>
+                <input type="number" id="inpVersionCode" min="1" value="1"
+                  class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono text-white focus:outline-none focus:border-sky-500" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">
+                Link tải trực tiếp file APK (<code class="text-sky-400">apkUrl</code>)
+              </label>
+              <input type="url" id="inpApkUrl" placeholder="https://... (Có thể để trống nếu chọn action = uninstall)"
+                class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">
+                Hành động xử lý trên TV Box (<code class="text-sky-400">action</code>)
+              </label>
+              <select id="inpAppAction"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500">
+                <option value="update">update — Cập nhật đè nếu bản mới hơn (hoặc cài mới nếu chưa có)</option>
+                <option value="install">install — Cài đặt mới nếu chưa có trên Box</option>
+                <option value="uninstall">uninstall — Tự động gỡ bỏ ứng dụng cũ/lỗi khỏi Box</option>
+              </select>
+            </div>
+          </div>
+
+          <input type="hidden" id="editingIndex" value="-1" />
+
+          <button type="button" onclick="saveAppToUpdateJson()" id="btnSubmitApp"
+            class="w-full py-2.5 px-4 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M5 13l4 4L19 7" />
+            </svg>
+            <span id="btnSubmitAppText">Lưu vào danh sách &amp; Commit lên GitHub</span>
+          </button>
+        </div>
+
+        <!-- CỘT PHẢI (7/12): DANH SÁCH ỨNG DỤNG ĐANG CÓ TRONG update.json -->
+        <div class="lg:col-span-7 flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">
+              Danh sách ứng dụng hiện tại trong <code class="text-sky-400">update.json</code>
+            </h3>
+            <span id="githubCommitStatus" class="text-xs text-slate-400"></span>
+          </div>
+
+          <div id="appsListContainer" class="space-y-3 flex-1">
+            <div class="p-8 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-slate-400 text-sm">
+              Hãy nhập cấu hình ở Khu vực 1 và bấm <b>"Lưu &amp; Tải dữ liệu"</b> để nạp danh sách ứng dụng.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- KHU VỰC 3: QUẢN LÝ DANH SÁCH TV BOX CỦA KHÁCH HÀNG (FIREBASE)             -->
+    <!-- ========================================================================= -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+      <div class="px-5 py-4 bg-slate-800/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
+            KHU VỰC 3
+          </span>
+          <h2 class="text-base sm:text-lg font-bold text-white">
+            Quản Lý Danh Sách TV Box Khách Hàng (<code class="text-purple-400">/boxes</code> trên Firebase)
+          </h2>
+        </div>
+
+        <!-- Thống kê nhanh -->
+        <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+          <span id="statTotalBoxes" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200">
+            Tổng: 0 Box
+          </span>
+          <span id="statAllowedBoxes" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            Đang mở: 0
+          </span>
+          <span id="statBlockedBoxes" class="px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30">
+            Đang khóa: 0
+          </span>
+        </div>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <!-- Thanh tìm kiếm & Bộ lọc trạng thái -->
+        <div class="flex flex-col sm:flex-row gap-3">
+          <div class="relative flex-1">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input type="text" id="searchBoxInput" oninput="renderBoxesList()"
+              placeholder="Tìm theo Tên khách hàng, Ghi chú bảo hành, Mã Box ID hoặc Dòng máy..."
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+          </div>
+
+          <select id="filterBoxStatus" onchange="renderBoxesList()"
+            class="px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="allowed">Đang hoạt động (Cho phép cập nhật)</option>
+            <option value="blocked">Đang bị khóa (Chặn cập nhật)</option>
+          </select>
+
+          <button type="button" onclick="loadBoxesFromFirebase()"
+            class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-semibold text-slate-200 transition shrink-0">
+            Tải lại danh sách Box
+          </button>
+        </div>
+
+        <!-- Danh sách / Bảng hiển thị các TV Box -->
+        <div id="boxesListContainer" class="space-y-3">
+          <div class="p-8 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-slate-400 text-sm">
+            Chưa có dữ liệu TV Box. Hãy cấu hình Firebase Database URL và bấm <b>"Lưu &amp; Tải dữ liệu"</b>.
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    // =========================================================================
+    // BIẾN TOÀN CỤC LƯU TRẠNG THÁI TRONG PHIÊN LÀM VIỆC
+    // =========================================================================
+    const STORAGE_KEY = 'TVBOX_AUTO_UPDATER_ADMIN_CONFIG_V1';
+    // Token được mã hóa XOR+Base64 bằng Mã PIN Quản trị để bảo mật khi public lên GitHub Pages
+    const ENCRYPTED_TOKEN_B64 = 'VlpDa3AFSQdlf094aHFKDHp5WXcCZAFfSFRJDGBGSXEGAgdUSGJpVg==';
+
+    function decryptTokenWithPin(pin) {
+      try {
+        const cipherBinary = atob(ENCRYPTED_TOKEN_B64);
+        const pinBytes = new TextEncoder().encode(pin.trim());
+        if (pinBytes.length === 0) return null;
+        const outBytes = new Uint8Array(cipherBinary.length);
+        for (let i = 0; i < cipherBinary.length; i++) {
+          outBytes[i] = cipherBinary.charCodeAt(i) ^ pinBytes[i % pinBytes.length];
+        }
+        const plain = new TextDecoder('utf-8').decode(outBytes);
+        return plain.startsWith('ghp_') ? plain : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function unlockWithPin(event) {
+      if (event) event.preventDefault();
+      const pinVal = document.getElementById('pinInput').value.trim();
+      const errEl = document.getElementById('pinErrorMsg');
+      const token = decryptTokenWithPin(pinVal);
+
+      if (!token) {
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      document.getElementById('cfgGithubToken').value = token;
+      document.getElementById('pinLockModal').classList.add('hidden');
+      saveConfigAndLoad();
+    }
+
+    let currentAppsList = [];          // Mảng apps trong update.json
+    let currentUpdateJsonSha = null;   // SHA hiện tại của file update.json trên GitHub
+    let selectedApkFile = null;        // File .apk người dùng vừa chọn
+    let selectedApkUploaded = false;   // Đánh dấu file .apk vừa chọn đã được đẩy lên GitHub chưa
+    let currentUploadMode = 'github';  // 'github' hoặc 'direct'
+    let boxesMap = {};                 // Dữ liệu nhánh /boxes từ Firebase
+
+    // =========================================================================
+    // TIỆN ÍCH HIỂN THỊ THÔNG BÁO (TOAST) & MÃ HÓA UTF-8 BASE64 CHUẨN
+    // =========================================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const colors = {
+        success: 'bg-emerald-600 border-emerald-400 text-white',
+        error: 'bg-red-600 border-red-400 text-white',
+        warning: 'bg-amber-500 border-amber-300 text-slate-950',
+        info: 'bg-sky-600 border-sky-400 text-white'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-2xl text-sm font-semibold transition-all duration-300 ${colors[type] || colors.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3800);
+    }
+
+    /**
+     * Mã hóa chuỗi UTF-8 (có dấu tiếng Việt) sang Base64 chuẩn xác 100%
+     */
+    function utf8ToBase64(str) {
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
+    }
+
+    /**
+     * Giải mã Base64 từ GitHub API về chuỗi UTF-8 tiếng Việt chuẩn xác 100%
+     */
+    function base64ToUtf8(base64Str) {
+      const cleaned = base64Str.replace(/\s/g, '');
+      const binary = atob(cleaned);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+
+    /**
+     * Chuyển File nhị phân (.apk) sang chuỗi Base64 để đẩy lên GitHub API
+     */
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result || '';
+          const commaIndex = result.indexOf(',');
+          resolve(commaIndex >= 0 ? result.substring(commaIndex + 1) : result);
+        };
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // =========================================================================
+    // KHU VỰC 1: QUẢN LÝ CẤU HÌNH (LOCALSTORAGE)
+    // =========================================================================
+    function getConfig() {
+      const repo = document.getElementById('cfgGithubRepo').value.trim().replace(/^\/+|\/+$/g, '');
+      const token = document.getElementById('cfgGithubToken').value.trim();
+      const branch = document.getElementById('cfgGithubBranch').value.trim() || 'main';
+      const firebaseUrl = document.getElementById('cfgFirebaseUrl').value.trim().replace(/\/+$/, '');
+      return { repo, token, branch, firebaseUrl };
+    }
+
+    function updateRawUrlPreview() {
+      const { repo, branch } = getConfig();
+      const previewEl = document.getElementById('rawJsonUrlPreview');
+      if (repo && repo.includes('/')) {
+        previewEl.textContent = `https://raw.githubusercontent.com/${repo}/${branch}/update.json`;
+      } else {
+        previewEl.textContent = 'Chưa cấu hình GitHub Repo';
+      }
+    }
+
+    function copyRawUpdateUrl() {
+      const { repo, branch } = getConfig();
+      if (!repo || !repo.includes('/')) {
+        showToast('Vui lòng nhập GitHub Repo (username/repo) trước!', 'warning');
+        return;
+      }
+      const rawUrl = `https://raw.githubusercontent.com/${repo}/${branch}/update.json`;
+      navigator.clipboard.writeText(rawUrl).then(() => {
+        showToast('Đã copy link Raw update.json vào bộ nhớ tạm!', 'success');
+      });
+    }
+
+    function toggleTokenVisibility() {
+      const input = document.getElementById('cfgGithubToken');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function toggleConfigSection() {
+      const body = document.getElementById('configPanelBody');
+      body.classList.toggle('hidden');
+    }
+
+    function loadSavedConfigFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (parsed.repo) document.getElementById('cfgGithubRepo').value = parsed.repo;
+        if (parsed.token) document.getElementById('cfgGithubToken').value = parsed.token;
+        if (parsed.branch) document.getElementById('cfgGithubBranch').value = parsed.branch;
+        if (parsed.firebaseUrl) document.getElementById('cfgFirebaseUrl').value = parsed.firebaseUrl;
+        updateRawUrlPreview();
+        return Boolean(parsed.repo || parsed.firebaseUrl);
+      } catch (e) {
+        console.error('Lỗi đọc localStorage:', e);
+        return false;
+      }
+    }
+
+    async function saveConfigAndLoad() {
+      const cfg = getConfig();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+      updateRawUrlPreview();
+      showToast('Đã lưu cấu hình vào trình duyệt. Đang tải dữ liệu...', 'info');
+      await syncAllData();
+    }
+
+    async function syncAllData() {
+      const cfg = getConfig();
+      const statusBadge = document.getElementById('connectionStatusBadge');
+      statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-sky-400 animate-ping"></span> Đang đồng bộ...`;
+
+      const tasks = [];
+      if (cfg.repo && cfg.token) {
+        tasks.push(loadUpdateJsonFromGithub());
+      }
+      if (cfg.firebaseUrl) {
+        tasks.push(loadBoxesFromFirebase());
+      }
+
+      if (tasks.length === 0) {
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> Chưa nhập cấu hình`;
+        showToast('Vui lòng nhập thông tin GitHub hoặc Firebase ở Khu vực 1!', 'warning');
+        return;
+      }
+
+      await Promise.allSettled(tasks);
+      statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Đã kết nối &amp; đồng bộ`;
+    }
+
+    // =========================================================================
+    // KHU VỰC 2: QUẢN LÝ KHO APK & ĐỒNG BỘ FILE update.json TRÊN GITHUB
+    // =========================================================================
+    function setUploadMode(mode) {
+      currentUploadMode = mode;
+      const btnGithub = document.getElementById('btnModeGithub');
+      const btnDirect = document.getElementById('btnModeDirect');
+      const githubBox = document.getElementById('githubUploadBox');
+
+      if (mode === 'github') {
+        btnGithub.className = 'px-3 py-2 rounded-xl text-xs font-bold border border-sky-500 bg-sky-500/20 text-sky-300 transition text-center';
+        btnDirect.className = 'px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900 text-slate-400 hover:text-white transition text-center';
+        githubBox.classList.remove('hidden');
+      } else {
+        btnDirect.className = 'px-3 py-2 rounded-xl text-xs font-bold border border-sky-500 bg-sky-500/20 text-sky-300 transition text-center';
+        btnGithub.className = 'px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900 text-slate-400 hover:text-white transition text-center';
+        githubBox.classList.add('hidden');
+      }
+    }
+
+    /**
+     * Phân tích file .APK bằng thư viện app-info-parser ngay trên trình duyệt
+     */
+    async function handleApkFileSelected(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      selectedApkFile = file;
+      selectedApkUploaded = false;
+      document.getElementById('inpApkUrl').value = '';
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+
+      try {
+        showToast(`Đang phân tích file ${file.name} (${sizeMb} MB)...`, 'info');
+        const parser = new window.AppInfoParser(file);
+        const result = await parser.parse();
+
+        // Trích xuất tên hiển thị ứng dụng (label)
+        let appLabel = '';
+        if (result.application && result.application.label) {
+          if (Array.isArray(result.application.label)) {
+            appLabel = result.application.label[0] || '';
+          } else if (typeof result.application.label === 'string') {
+            appLabel = result.application.label;
+          }
+        }
+        if (!appLabel || appLabel.startsWith('resourceId:')) {
+          appLabel = file.name.replace(/\.apk$/i, '');
+        }
+
+        const pkgName = result.package || '';
+        const verCode = Number(result.versionCode || 1);
+        const verName = result.versionName || '1.0';
+
+        // Điền tự động vào các ô input (đồng thời xóa link APK cũ để tránh nhầm với file trước)
+        document.getElementById('inpAppName').value = appLabel;
+        document.getElementById('inpPackageName').value = pkgName;
+        document.getElementById('inpVersionCode').value = verCode;
+        document.getElementById('inpApkUrl').value = '';
+
+        // Hiển thị preview
+        const previewBox = document.getElementById('parsedApkPreview');
+        const iconImg = document.getElementById('parsedApkIcon');
+        const summaryName = document.getElementById('parsedApkSummaryName');
+        const summaryMeta = document.getElementById('parsedApkSummaryMeta');
+
+        previewBox.classList.remove('hidden');
+        iconImg.src = result.icon || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="%2338bdf8" viewBox="0 0 24 24"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24a11.43 11.43 0 00-8.94 0L5.65 5.67c-.19-.28-.54-.37-.83-.22-.3.16-.42.54-.26.85L6.4 9.48C3.3 11.25 1.28 14.44 1 18h22c-.28-3.56-2.3-6.75-5.4-8.52z"/></svg>';
+        summaryName.textContent = `${appLabel} (v${verName} - code ${verCode})`;
+        summaryMeta.textContent = `${pkgName} • Dung lượng: ${sizeMb} MB`;
+
+        // Nếu file > 50MB, gợi ý chuyển sang Chế độ 2 (Cloudflare R2 / Hosting ngoài)
+        if (file.size > 50 * 1024 * 1024) {
+          setUploadMode('direct');
+          showToast('File APK lớn hơn 50MB! Đã tự động điền thông tin gói, hãy dán link tải trực tiếp từ Cloudflare R2.', 'warning');
+        } else {
+          showToast('Đã đọc thành công thông tin từ file APK!', 'success');
+        }
+      } catch (err) {
+        console.error('Lỗi phân tích APK:', err);
+        showToast('Không thể đọc tự động cấu trúc APK này, vui lòng kiểm tra và điền thủ công.', 'warning');
+      }
+    }
+
+    /**
+     * Đẩy file .apk đã chọn lên thư mục apk/ của GitHub Repo qua GitHub REST API
+     */
+    async function uploadSelectedApkToGithub() {
+      if (!selectedApkFile) {
+        showToast('Vui lòng chọn 1 file .APK ở khung phía trên trước!', 'warning');
+        return;
+      }
+
+      const { repo, token, branch } = getConfig();
+      if (!repo || !token) {
+        showToast('Vui lòng nhập GitHub Repo và Token ở Khu vực 1!', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btnUploadApkToGithub');
+      const progressText = document.getElementById('githubUploadProgress');
+      btn.disabled = true;
+      progressText.classList.remove('hidden');
+
+      try {
+        // Tạo tên file chuẩn hóa không khoảng trắng
+        const safeFileName = selectedApkFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const githubPath = `apk/${safeFileName}`;
+        const apiUrl = `https://api.github.com/repos/${repo}/contents/${githubPath}`;
+
+        // Kiểm tra xem file đã tồn tại trên GitHub chưa để lấy SHA ghi đè
+        let existingFileSha = null;
+        const checkRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json'
+          }
+        });
+        if (checkRes.ok) {
+          const existingData = await checkRes.json();
+          existingFileSha = existingData.sha;
+        }
+
+        const base64Content = await fileToBase64(selectedApkFile);
+        const bodyPayload = {
+          message: `Upload APK ${safeFileName} via Admin Panel`,
+          content: base64Content,
+          branch: branch
+        };
+        if (existingFileSha) {
+          bodyPayload.sha = existingFileSha;
+        }
+
+        const putRes = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(bodyPayload)
+        });
+
+        if (!putRes.ok) {
+          const errText = await putRes.text();
+          throw new Error(`GitHub API HTTP ${putRes.status}: ${errText}`);
+        }
+
+        const rawApkUrl = `https://raw.githubusercontent.com/${repo}/${branch}/${githubPath}`;
+        document.getElementById('inpApkUrl').value = rawApkUrl;
+        selectedApkUploaded = true;
+        showToast('Đã tải file APK lên GitHub và tự điền link Raw thành công!', 'success');
+        return true;
+      } catch (err) {
+        console.error('Lỗi upload APK lên GitHub:', err);
+        showToast(`Lỗi tải APK lên GitHub: ${err.message}`, 'error');
+        return false;
+      } finally {
+        btn.disabled = false;
+        progressText.classList.add('hidden');
+      }
+    }
+
+    /**
+     * Tải nội dung file update.json từ GitHub Repo
+     */
+    async function loadUpdateJsonFromGithub() {
+      const { repo, token, branch } = getConfig();
+      if (!repo || !token) return;
+
+      const apiUrl = `https://api.github.com/repos/${repo}/contents/update.json?ref=${encodeURIComponent(branch)}`;
+
+      try {
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json'
+          },
+          cache: 'no-store'
+        });
+
+        if (response.status === 404) {
+          currentAppsList = [];
+          currentUpdateJsonSha = null;
+          renderAppsList();
+          showToast('File update.json chưa tồn tại trên Repo. Khi bạn thêm ứng dụng đầu tiên, hệ thống sẽ tự tạo file!', 'info');
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        currentUpdateJsonSha = data.sha;
+
+        const decodedJsonStr = base64ToUtf8(data.content || '');
+        const parsedObj = JSON.parse(decodedJsonStr);
+        currentAppsList = Array.isArray(parsedObj.apps) ? parsedObj.apps : [];
+
+        renderAppsList();
+        renderBoxesList(); // Cập nhật lại màu đối chiếu versionCode ở bảng Box
+      } catch (err) {
+        console.error('Lỗi đọc update.json:', err);
+        showToast(`Không đọc được update.json từ GitHub: ${err.message}`, 'error');
+      }
+    }
+
+    /**
+     * Commit đè nội dung update.json lên GitHub (xử lý chuẩn UTF-8 tiếng Việt)
+     */
+    async function commitUpdateJsonToGithub(commitMessage = 'Cập nhật danh sách ứng dụng update.json') {
+      const { repo, token, branch } = getConfig();
+      if (!repo || !token) {
+        showToast('Vui lòng cấu hình GitHub Repo và Token ở Khu vực 1!', 'error');
+        return false;
+      }
+
+      const statusEl = document.getElementById('githubCommitStatus');
+      statusEl.textContent = 'Đang commit lên GitHub...';
+      statusEl.className = 'text-xs text-amber-400 font-semibold';
+
+      try {
+        const apiUrl = `https://api.github.com/repos/${repo}/contents/update.json`;
+
+        // Lấy lại SHA mới nhất để tránh lỗi 409 Conflict
+        const latestRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json'
+          },
+          cache: 'no-store'
+        });
+        if (latestRes.ok) {
+          const latestData = await latestRes.json();
+          currentUpdateJsonSha = latestData.sha;
+        }
+
+        const jsonPayloadString = JSON.stringify({ apps: currentAppsList }, null, 2);
+        const base64Utf8 = utf8ToBase64(jsonPayloadString);
+
+        const bodyObj = {
+          message: commitMessage,
+          content: base64Utf8,
+          branch: branch
+        };
+        if (currentUpdateJsonSha) {
+          bodyObj.sha = currentUpdateJsonSha;
+        }
+
+        const putRes = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(bodyObj)
+        });
+
+        if (!putRes.ok) {
+          const errDetail = await putRes.text();
+          throw new Error(`HTTP ${putRes.status}: ${errDetail}`);
+        }
+
+        const putData = await putRes.json();
+        currentUpdateJsonSha = putData.content && putData.content.sha ? putData.content.sha : currentUpdateJsonSha;
+
+        statusEl.textContent = 'Đã lưu lên GitHub ✓';
+        statusEl.className = 'text-xs text-emerald-400 font-semibold';
+        showToast('Đã cập nhật file update.json trên GitHub thành công!', 'success');
+        renderAppsList();
+        renderBoxesList();
+        return true;
+      } catch (err) {
+        console.error('Lỗi commit update.json:', err);
+        statusEl.textContent = 'Lỗi commit GitHub!';
+        statusEl.className = 'text-xs text-red-400 font-semibold';
+        showToast(`Lỗi ghi update.json lên GitHub: ${err.message}`, 'error');
+        return false;
+      }
+    }
+
+    /**
+     * Thêm mới hoặc cập nhật ứng dụng từ Form vào mảng currentAppsList và commit lên GitHub
+     */
+    async function saveAppToUpdateJson() {
+      const name = document.getElementById('inpAppName').value.trim();
+      const packageName = document.getElementById('inpPackageName').value.trim();
+      const versionCode = parseInt(document.getElementById('inpVersionCode').value, 10) || 1;
+      let apkUrl = document.getElementById('inpApkUrl').value.trim();
+      const action = document.getElementById('inpAppAction').value;
+      const editingIdx = parseInt(document.getElementById('editingIndex').value, 10);
+
+      if (!name || !packageName) {
+        showToast('Vui lòng nhập đầy đủ Tên ứng dụng và Tên gói (packageName)!', 'warning');
+        return;
+      }
+
+      // Nếu người dùng đã chọn file APK mới ở Chế độ 1 (GitHub) mà chưa đẩy lên,
+      // tự động tải file APK đó lên thư mục apk/ của GitHub trước khi lưu update.json!
+      const submitBtn = document.getElementById('btnSubmitApp');
+      const submitText = document.getElementById('btnSubmitAppText');
+      const originalBtnText = submitText.textContent;
+
+      if ((action === 'install' || action === 'update') && selectedApkFile && !selectedApkUploaded && currentUploadMode === 'github') {
+        submitBtn.disabled = true;
+        const sizeMb = (selectedApkFile.size / (1024 * 1024)).toFixed(1);
+        submitText.textContent = `Đang đẩy file APK (${sizeMb} MB) lên GitHub...`;
+        const uploadedOk = await uploadSelectedApkToGithub();
+        submitBtn.disabled = false;
+        submitText.textContent = originalBtnText;
+        if (!uploadedOk) return;
+        apkUrl = document.getElementById('inpApkUrl').value.trim();
+      }
+
+      if ((action === 'install' || action === 'update') && !apkUrl) {
+        showToast('Vui lòng cung cấp link tải APK (apkUrl) hoặc chọn file APK để đẩy lên GitHub!', 'warning');
+        return;
+      }
+
+      const appItem = {
+        name,
+        packageName,
+        versionCode,
+        apkUrl,
+        action
+      };
+
+      if (editingIdx >= 0 && editingIdx < currentAppsList.length) {
+        currentAppsList[editingIdx] = appItem;
+      } else {
+        // Kiểm tra xem packageName đã tồn tại trong danh sách chưa, nếu có thì ghi đè
+        const existingIndex = currentAppsList.findIndex(a => a.packageName === packageName);
+        if (existingIndex >= 0) {
+          currentAppsList[existingIndex] = appItem;
+        } else {
+          currentAppsList.push(appItem);
+        }
+      }
+
+      const ok = await commitUpdateJsonToGithub(`Cập nhật ứng dụng ${name} (${packageName} - ${action})`);
+      if (ok) {
+        resetApkForm();
+      }
+    }
+
+    function resetApkForm() {
+      document.getElementById('inpAppName').value = '';
+      document.getElementById('inpPackageName').value = '';
+      document.getElementById('inpVersionCode').value = '1';
+      document.getElementById('inpApkUrl').value = '';
+      document.getElementById('inpAppAction').value = 'update';
+      document.getElementById('editingIndex').value = '-1';
+      document.getElementById('apkFileInput').value = '';
+      document.getElementById('parsedApkPreview').classList.add('hidden');
+      document.getElementById('formApkTitle').textContent = '+ Thêm / Cập nhật Ứng dụng vào Kho';
+      document.getElementById('btnSubmitAppText').textContent = 'Lưu vào danh sách & Commit lên GitHub';
+      selectedApkFile = null;
+      selectedApkUploaded = false;
+    }
+
+    function editAppItem(index) {
+      const app = currentAppsList[index];
+      if (!app) return;
+
+      document.getElementById('inpAppName').value = app.name || '';
+      document.getElementById('inpPackageName').value = app.packageName || '';
+      document.getElementById('inpVersionCode').value = app.versionCode || 1;
+      document.getElementById('inpApkUrl').value = app.apkUrl || '';
+      document.getElementById('inpAppAction').value = app.action || 'update';
+      document.getElementById('editingIndex').value = String(index);
+
+      document.getElementById('formApkTitle').textContent = `Đang sửa: ${app.name}`;
+      document.getElementById('btnSubmitAppText').textContent = 'Cập nhật thay đổi & Commit lên GitHub';
+      document.getElementById('inpAppName').focus();
+    }
+
+    async function quickSwitchToUninstall(index) {
+      const app = currentAppsList[index];
+      if (!app) return;
+      if (!confirm(`Đổi trạng thái ứng dụng "${app.name}" (${app.packageName}) thành GỠ BỎ TỰ ĐỘNG (uninstall) trên tất cả TV Box?`)) {
+        return;
+      }
+      currentAppsList[index].action = 'uninstall';
+      await commitUpdateJsonToGithub(`Đổi ${app.packageName} sang trạng thái gỡ bỏ (uninstall)`);
+    }
+
+    async function removeAppFromList(index) {
+      const app = currentAppsList[index];
+      if (!app) return;
+      if (!confirm(`Xóa "${app.name}" (${app.packageName}) khỏi file update.json?`)) {
+        return;
+      }
+      currentAppsList.splice(index, 1);
+      await commitUpdateJsonToGithub(`Xóa ${app.packageName} khỏi update.json`);
+    }
+
+    function renderAppsList() {
+      const container = document.getElementById('appsListContainer');
+      const countBadge = document.getElementById('apkCountBadge');
+      countBadge.textContent = `Tổng số: ${currentAppsList.length} ứng dụng`;
+
+      if (currentAppsList.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-slate-400 text-sm">
+            Kho ứng dụng <code class="text-sky-400">update.json</code> hiện đang trống. Hãy chọn file APK bên trái để thêm ứng dụng đầu tiên.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = currentAppsList.map((app, index) => {
+        const action = (app.action || 'update').toLowerCase();
+        let badgeHtml = '';
+        if (action === 'update') {
+          badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">UPDATE (v${escapeHtml(app.versionCode)})</span>`;
+        } else if (action === 'install') {
+          badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">INSTALL (v${escapeHtml(app.versionCode)})</span>`;
+        } else {
+          badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">UNINSTALL (Gỡ bỏ)</span>`;
+        }
+
+        return `
+          <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-1 min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-sm font-bold text-white">${escapeHtml(app.name)}</span>
+                ${badgeHtml}
+              </div>
+              <div class="text-xs font-mono text-slate-400 break-all">
+                Gói: <span class="text-slate-200">${escapeHtml(app.packageName)}</span> • VersionCode: <span class="text-sky-400 font-bold">${escapeHtml(app.versionCode)}</span>
+              </div>
+              ${app.apkUrl ? `
+                <div class="text-xs text-slate-500 truncate">
+                  Link APK: <a href="${escapeHtml(app.apkUrl)}" target="_blank" class="text-sky-400 hover:underline">${escapeHtml(app.apkUrl)}</a>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <button type="button" onclick="editAppItem(${index})"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-sky-300 transition">
+                Sửa
+              </button>
+              ${action !== 'uninstall' ? `
+                <button type="button" onclick="quickSwitchToUninstall(${index})"
+                  class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition">
+                  Đổi thành Gỡ bỏ
+                </button>
+              ` : ''}
+              <button type="button" onclick="removeAppFromList(${index})"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 transition">
+                Xóa
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // KHU VỰC 3: QUẢN LÝ DANH SÁCH TV BOX KHÁCH HÀNG TRÊN FIREBASE
+    // =========================================================================
+    async function loadBoxesFromFirebase() {
+      const { firebaseUrl } = getConfig();
+      if (!firebaseUrl) return;
+
+      try {
+        const res = await fetch(`${firebaseUrl}/boxes.json`, { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        boxesMap = data && typeof data === 'object' ? data : {};
+        renderBoxesList();
+      } catch (err) {
+        console.error('Lỗi tải danh sách Box từ Firebase:', err);
+        showToast(`Lỗi kết nối Firebase: ${err.message}`, 'error');
+      }
+    }
+
+    /**
+     * Sửa nhanh Tên khách hàng / Ghi chú bảo hành (Gửi HTTP PATCH lên Firebase)
+     */
+    async function editCustomerName(boxKey) {
+      const box = boxesMap[boxKey];
+      if (!box) return;
+
+      const currentName = box.customerName || '';
+      const newName = prompt(`Nhập Tên khách hàng / Ghi chú bảo hành cho mã máy [${box.boxId || boxKey}]:`, currentName);
+      if (newName === null) return;
+
+      const { firebaseUrl } = getConfig();
+      try {
+        const res = await fetch(`${firebaseUrl}/boxes/${encodeURIComponent(boxKey)}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerName: newName.trim() })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        boxesMap[boxKey].customerName = newName.trim();
+        renderBoxesList();
+        showToast(`Đã cập nhật tên khách hàng cho Box [${boxKey}]!`, 'success');
+      } catch (err) {
+        showToast(`Không thể cập nhật tên khách hàng: ${err.message}`, 'error');
+      }
+    }
+
+    /**
+     * Bật / Tắt quyền cập nhật isAllowed của TV Box (Gửi HTTP PATCH lên Firebase)
+     */
+    async function toggleBoxAllowed(boxKey, isAllowedChecked) {
+      const { firebaseUrl } = getConfig();
+      try {
+        const res = await fetch(`${firebaseUrl}/boxes/${encodeURIComponent(boxKey)}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isAllowed: Boolean(isAllowedChecked) })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        if (boxesMap[boxKey]) {
+          boxesMap[boxKey].isAllowed = Boolean(isAllowedChecked);
+        }
+        renderBoxesList();
+        showToast(
+          isAllowedChecked
+            ? `Đã MỞ quyền cập nhật cho thiết bị [${boxKey}]`
+            : `Đã KHÓA quyền cập nhật của thiết bị [${boxKey}]`,
+          isAllowedChecked ? 'success' : 'warning'
+        );
+      } catch (err) {
+        showToast(`Lỗi khi đổi trạng thái khóa Box: ${err.message}`, 'error');
+        renderBoxesList();
+      }
+    }
+
+    /**
+     * Xóa 1 TV Box khỏi Firebase Realtime Database
+     */
+    async function deleteBoxFromFirebase(boxKey) {
+      const box = boxesMap[boxKey];
+      const label = box && box.customerName ? `${box.customerName} (${boxKey})` : boxKey;
+      if (!confirm(`Bạn có chắc chắn muốn xóa TV Box "${label}" khỏi hệ thống quản lý?`)) {
+        return;
+      }
+
+      const { firebaseUrl } = getConfig();
+      try {
+        const res = await fetch(`${firebaseUrl}/boxes/${encodeURIComponent(boxKey)}.json`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        delete boxesMap[boxKey];
+        renderBoxesList();
+        showToast(`Đã xóa TV Box [${boxKey}] khỏi danh sách!`, 'info');
+      } catch (err) {
+        showToast(`Lỗi xóa TV Box: ${err.message}`, 'error');
+      }
+    }
+
+    function copyTextToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`Đã copy mã máy: ${text}`, 'info');
+      });
+    }
+
+    /**
+     * Hiển thị danh sách TV Box kèm tìm kiếm, bộ lọc và nhãn đối chiếu phiên bản ứng dụng
+     */
+    function renderBoxesList() {
+      const container = document.getElementById('boxesListContainer');
+      const query = (document.getElementById('searchBoxInput').value || '').trim().toLowerCase();
+      const statusFilter = document.getElementById('filterBoxStatus').value;
+
+      const allEntries = Object.entries(boxesMap || {});
+      let totalCount = allEntries.length;
+      let allowedCount = 0;
+      let blockedCount = 0;
+
+      allEntries.forEach(([_, box]) => {
+        if (box && box.isAllowed === false) blockedCount++;
+        else allowedCount++;
+      });
+
+      document.getElementById('statTotalBoxes').textContent = `Tổng: ${totalCount} Box`;
+      document.getElementById('statAllowedBoxes').textContent = `Đang mở: ${allowedCount}`;
+      document.getElementById('statBlockedBoxes').textContent = `Đang khóa: ${blockedCount}`;
+
+      // Tạo bảng tra cứu nhanh thông tin ứng dụng từ update.json theo key dạng gạch dưới (com_phim_hdobox)
+      const expectedAppLookup = {};
+      currentAppsList.forEach(app => {
+        const safeKey = (app.packageName || '').replace(/\./g, '_');
+        expectedAppLookup[safeKey] = app;
+      });
+
+      const filteredEntries = allEntries.filter(([key, box]) => {
+        if (!box) return false;
+        const isAllowed = box.isAllowed !== false;
+        if (statusFilter === 'allowed' && !isAllowed) return false;
+        if (statusFilter === 'blocked' && isAllowed) return false;
+
+        if (!query) return true;
+        const boxIdStr = (box.boxId || key || '').toLowerCase();
+        const customerStr = (box.customerName || '').toLowerCase();
+        const modelStr = (box.model || '').toLowerCase();
+        return boxIdStr.includes(query) || customerStr.includes(query) || modelStr.includes(query);
+      });
+
+      if (filteredEntries.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-slate-400 text-sm">
+            Không tìm thấy TV Box nào khớp với điều kiện lọc.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filteredEntries.map(([boxKey, box]) => {
+        const boxId = box.boxId || boxKey;
+        const customerName = box.customerName || 'Khách hàng mới (Chưa đặt tên)';
+        const model = box.model || 'Android TV Box';
+        const lastActive = box.lastActive || 'Chưa rõ';
+        const isAllowed = box.isAllowed !== false;
+        const installedApps = box.installedApps && typeof box.installedApps === 'object' ? box.installedApps : {};
+        const installedKeys = Object.keys(installedApps);
+
+        const badgesHtml = installedKeys.length > 0
+          ? installedKeys.map(pkgKey => {
+              const installedVerStr = String(installedApps[pkgKey] || '');
+              const installedVerNum = parseInt(installedVerStr.replace(/[^0-9]/g, ''), 10) || 0;
+              const matchedApp = expectedAppLookup[pkgKey];
+              const displayPkg = matchedApp ? matchedApp.name : pkgKey.replace(/_/g, '.');
+
+              let badgeStyle = 'bg-slate-800 text-slate-200 border-slate-700';
+              let statusSuffix = '';
+
+              if (matchedApp && matchedApp.action !== 'uninstall') {
+                if (installedVerNum >= Number(matchedApp.versionCode)) {
+                  badgeStyle = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+                  statusSuffix = ' ✓';
+                } else {
+                  badgeStyle = 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+                  statusSuffix = ` (Mới: v${matchedApp.versionCode})`;
+                }
+              }
+
+              return `
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border ${badgeStyle}">
+                  <span>${escapeHtml(displayPkg)}:</span>
+                  <strong class="font-mono">${escapeHtml(installedVerStr)}${escapeHtml(statusSuffix)}</strong>
+                </span>
+              `;
+            }).join('')
+          : `<span class="text-xs text-slate-500 italic">Chưa có báo cáo danh sách ứng dụng đã cài</span>`;
+
+        return `
+          <div class="p-4 sm:p-5 rounded-2xl bg-slate-950 border ${isAllowed ? 'border-slate-800' : 'border-red-500/40 bg-red-950/10'} transition flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <!-- Thông tin Khách hàng & Thiết bị -->
+            <div class="space-y-2 flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-2.5">
+                <span class="text-base font-bold text-white">${escapeHtml(customerName)}</span>
+                <button type="button" onclick="editCustomerName('${escapeHtml(boxKey)}')"
+                  class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-sky-400 transition">
+                  ✎ Sửa tên / Ghi chú
+                </button>
+                ${isAllowed
+                  ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Đang cho phép cập nhật</span>`
+                  : `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30">ĐANG BỊ KHÓA</span>`
+                }
+              </div>
+
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                <div class="flex items-center gap-1.5">
+                  <span>Mã Box ID:</span>
+                  <code class="px-2 py-0.5 rounded bg-slate-900 text-sky-300 font-mono font-bold border border-slate-800">${escapeHtml(boxId)}</code>
+                  <button type="button" onclick="copyTextToClipboard('${escapeHtml(boxId)}')"
+                    class="text-slate-400 hover:text-white underline">Copy</button>
+                </div>
+                <div>Dòng máy: <strong class="text-slate-200">${escapeHtml(model)}</strong></div>
+                <div>Hoạt động gần nhất: <strong class="text-slate-200">${escapeHtml(lastActive)}</strong></div>
+              </div>
+
+              <!-- Nhãn phiên bản ứng dụng thực tế đang cài trên Box -->
+              <div class="pt-1 flex flex-wrap items-center gap-1.5">
+                <span class="text-xs font-semibold text-slate-400 mr-1">Ứng dụng trên Box:</span>
+                ${badgesHtml}
+              </div>
+            </div>
+
+            <!-- Công tắc Khóa / Mở quyền cập nhật & Nút Xóa Box -->
+            <div class="flex items-center justify-between sm:justify-end gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-800/80 shrink-0">
+              <label class="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                <span class="text-xs font-semibold ${isAllowed ? 'text-emerald-400' : 'text-red-400'}">
+                  ${isAllowed ? 'Cho phép cập nhật' : 'Đang khóa Box'}
+                </span>
+                <div class="relative">
+                  <input type="checkbox" class="sr-only peer"
+                    ${isAllowed ? 'checked' : ''}
+                    onchange="toggleBoxAllowed('${escapeHtml(boxKey)}', this.checked)" />
+                  <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                </div>
+              </label>
+
+              <button type="button" onclick="deleteBoxFromFirebase('${escapeHtml(boxKey)}')"
+                class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 transition">
+                Xóa Box
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Tự động nạp cấu hình từ localStorage (hoặc hiện màn hình nhập mã PIN nếu mở lần đầu trên 4G/điện thoại)
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('cfgGithubRepo').addEventListener('input', updateRawUrlPreview);
+      document.getElementById('cfgGithubBranch').addEventListener('input', updateRawUrlPreview);
+
+      loadSavedConfigFromLocalStorage();
+      updateRawUrlPreview();
+
+      const currentToken = document.getElementById('cfgGithubToken').value.trim();
+      if (!currentToken) {
+        document.getElementById('pinLockModal').classList.remove('hidden');
+        setTimeout(() => document.getElementById('pinInput').focus(), 150);
+      } else {
+        syncAllData();
+      }
+    });
+  </script>
+</body>
+</html>
