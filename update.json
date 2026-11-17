@@ -27,6 +27,13 @@
       "versionCode": 8,
       "apkUrl": "https://raw.githubusercontent.com/chinhphamhuu/tvbox-update/main/apk/Get_Out_new.apk",
       "action": "update"
+    },
+    {
+      "name": "Youtube TV",
+      "packageName": "com.google.android.youtube.tv",
+      "versionCode": 107,
+      "apkUrl": "https://raw.githubusercontent.com/chinhphamhuu/tvbox-update/main/apk/YOUTUBE_TIZEN_cobalt_tizen_modded_1.apk",
+      "action": "update"
     }
   ]
 }
