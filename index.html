@@ -29,13 +29,6 @@
   <!-- Thư viện đọc thông tin file .APK trực tiếp trên trình duyệt -->
   <script src="https://unpkg.com/app-info-parser/dist/app-info-parser.min.js"></script>
 
-  <!-- Thư viện chính thức của Hugging Face Hub hỗ trợ đẩy file APK lớn tới 50GB trực tiếp từ trình duyệt -->
-  <script type="module">
-    import { uploadFiles, uploadFilesWithProgress } from 'https://esm.sh/@huggingface/hub@2.17.11';
-    window.hfUploadFiles = uploadFiles;
-    window.hfUploadFilesWithProgress = uploadFilesWithProgress;
-  </script>
-
   <style>
     body {
       background-color: #0f172a;
@@ -780,8 +773,50 @@
     }
 
     /**
-     * Đẩy file .apk đã chọn (hỗ trợ nguyên 1 file từ vài MB đến 50GB) lên Hugging Face Datasets
-     * thông qua thư viện chính thức @huggingface/hub (tự động xử lý LFS/Xet Multipart).
+     * Tính mã băm SHA-256 (hex 64 ký tự) trực tiếp bằng phần cứng trình duyệt (Web Crypto API)
+     * Không dùng WebWorker ngoại lai nên không bao giờ bị treo ở 10% trên điện thoại!
+     */
+    async function computeFileSha256Hex(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    /**
+     * Đẩy luồng dữ liệu nhị phân (File/Blob) trực tiếp lên kho lưu trữ AWS S3 của Hugging Face
+     * kèm cập nhật phần trăm (%) theo thời gian thực qua XMLHttpRequest.
+     */
+    function putBinaryToS3WithProgress(uploadUrl, fileOrBlob, onPercent) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl, true);
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && onPercent) {
+            const pct = Math.round((event.loaded * 100) / event.total);
+            onPercent(pct, event.loaded, event.total);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const etag = xhr.getResponseHeader('ETag') || xhr.getResponseHeader('etag') || '';
+            resolve(etag);
+          } else {
+            reject(new Error(`S3 Upload HTTP ${xhr.status}: ${xhr.statusText}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Lỗi kết nối mạng khi đẩy file lên S3 Hugging Face'));
+        xhr.send(fileOrBlob);
+      });
+    }
+
+    /**
+     * Đẩy file .apk đã chọn (hỗ trợ nguyên 1 file từ vài MB đến 5GB) thẳng lên Hugging Face LFS S3
+     * hoàn toàn bằng JavaScript thuần (không dùng WebWorker nên chạy mượt 100% trên cả Điện thoại & PC).
      */
     async function uploadSelectedApkToGithub(onProgressCallback = null) {
       if (!selectedApkFile) {
@@ -806,39 +841,102 @@
         const totalSize = selectedApkFile.size;
         const sizeMb = (totalSize / (1024 * 1024)).toFixed(1);
 
-        const initMsg = `Đang đẩy APK (${sizeMb} MB) lên Hugging Face: 0%...`;
-        progressText.textContent = initMsg;
-        if (onProgressCallback) onProgressCallback(initMsg);
+        const reportStatus = (msg) => {
+          progressText.textContent = msg;
+          if (onProgressCallback) onProgressCallback(msg);
+        };
 
-        if (window.hfUploadFilesWithProgress) {
-          for await (const progressEvent of window.hfUploadFilesWithProgress({
-            repo: { type: 'dataset', name: repo },
-            credentials: { accessToken: token },
-            branch: branch,
-            commitTitle: `Upload APK ${safeFileName} (${sizeMb} MB)`,
-            files: [
-              { path: hfPath, content: selectedApkFile }
-            ]
-          })) {
-            if (progressEvent.event === 'fileProgress') {
-              const pct = Math.round((progressEvent.progress || 0) * 100);
-              const msg = `Đang đẩy APK (${sizeMb} MB) lên Hugging Face: ${pct}%...`;
-              progressText.textContent = msg;
-              if (onProgressCallback) onProgressCallback(msg);
-            }
-          }
-        } else if (window.hfUploadFiles) {
-          await window.hfUploadFiles({
-            repo: { type: 'dataset', name: repo },
-            credentials: { accessToken: token },
-            branch: branch,
-            commitTitle: `Upload APK ${safeFileName} (${sizeMb} MB)`,
-            files: [
-              { path: hfPath, content: selectedApkFile }
-            ]
+        // BƯỚC 1: Tính SHA-256 trên thiết bị
+        reportStatus(`Đang tính mã kiểm tra SHA-256 cho file (${sizeMb} MB)...`);
+        const oid = await computeFileSha256Hex(selectedApkFile);
+
+        // BƯỚC 2: Xin link S3 Presigned PUT từ Hugging Face LFS Batch API (chế độ basic hỗ trợ tới 5GB/file)
+        reportStatus(`Đang khởi tạo phiên tải lên Hugging Face LFS...`);
+        const lfsBatchUrl = `https://huggingface.co/datasets/${repo}.git/info/lfs/objects/batch`;
+        const batchRes = await fetch(lfsBatchUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.git-lfs+json',
+            'Content-Type': 'application/vnd.git-lfs+json'
+          },
+          body: JSON.stringify({
+            operation: 'upload',
+            transfers: ['basic'],
+            objects: [{ oid: oid, size: totalSize }],
+            hash_algo: 'sha256'
+          })
+        });
+
+        if (!batchRes.ok) {
+          const errText = await batchRes.text();
+          throw new Error(`LFS Batch HTTP ${batchRes.status}: ${errText}`);
+        }
+
+        const batchData = await batchRes.json();
+        const lfsObj = batchData.objects && batchData.objects[0];
+        if (!lfsObj) {
+          throw new Error('Phản hồi LFS Batch không hợp lệ');
+        }
+        if (lfsObj.error) {
+          throw new Error(`LFS Error ${lfsObj.error.code}: ${lfsObj.error.message}`);
+        }
+
+        // BƯỚC 3: Nếu file chưa có trên S3 của Hugging Face thì đẩy luồng nhị phân lên S3
+        if (lfsObj.actions && lfsObj.actions.upload && lfsObj.actions.upload.href) {
+          const s3PutUrl = lfsObj.actions.upload.href;
+          await putBinaryToS3WithProgress(s3PutUrl, selectedApkFile, (pct, loadedBytes) => {
+            const loadedMb = (loadedBytes / (1024 * 1024)).toFixed(1);
+            reportStatus(`Đang đẩy APK lên Hugging Face: ${pct}% (${loadedMb} / ${sizeMb} MB)...`);
           });
         } else {
-          throw new Error('Thư viện @huggingface/hub đang tải, vui lòng đợi 2 giây rồi thử lại!');
+          reportStatus(`File APK đã có sẵn trên kho LFS (100%), đang gắn vào nhánh ${branch}...`);
+        }
+
+        // BƯỚC 4: Xác thực đối tượng LFS (nếu máy chủ yêu cầu verify)
+        if (lfsObj.actions && lfsObj.actions.verify && lfsObj.actions.verify.href) {
+          reportStatus(`Đang xác thực toàn vẹn file APK (98%)...`);
+          await fetch(lfsObj.actions.verify.href, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/vnd.git-lfs+json',
+              'Content-Type': 'application/vnd.git-lfs+json'
+            },
+            body: JSON.stringify({ oid: oid, size: totalSize })
+          });
+        }
+
+        // BƯỚC 5: Commit con trỏ LFS vào nhánh main của Dataset Repo
+        reportStatus(`Đang ghi nhận file ${safeFileName} vào kho (99%)...`);
+        const commitUrl = `https://huggingface.co/api/datasets/${repo}/commit/${encodeURIComponent(branch)}`;
+        const headerLine = JSON.stringify({
+          key: 'header',
+          value: { summary: `Upload APK ${safeFileName} (${sizeMb} MB)` }
+        });
+        const lfsFileLine = JSON.stringify({
+          key: 'lfsFile',
+          value: {
+            path: hfPath,
+            algo: 'sha256',
+            oid: oid,
+            size: totalSize
+          }
+        });
+        const ndjsonCommitBody = `${headerLine}\n${lfsFileLine}\n`;
+
+        const commitRes = await fetch(commitUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/x-ndjson'
+          },
+          body: ndjsonCommitBody
+        });
+
+        if (!commitRes.ok) {
+          const commitErr = await commitRes.text();
+          throw new Error(`HF Commit HTTP ${commitRes.status}: ${commitErr}`);
         }
 
         const directDownloadUrl = `https://huggingface.co/datasets/${repo}/resolve/${branch}/${hfPath}?download=true`;
@@ -911,43 +1009,29 @@
       try {
         const jsonPayloadString = JSON.stringify({ apps: currentAppsList }, null, 2);
 
-        if (window.hfUploadFiles) {
-          const jsonBlob = new Blob([jsonPayloadString], { type: 'application/json' });
-          await window.hfUploadFiles({
-            repo: { type: 'dataset', name: repo },
-            credentials: { accessToken: token },
-            branch: branch,
-            commitTitle: commitMessage,
-            files: [
-              { path: 'update.json', content: jsonBlob }
-            ]
-          });
-        } else {
-          // Dự phòng gọi trực tiếp Hugging Face NDJSON Commit API
-          const commitUrl = `https://huggingface.co/api/datasets/${repo}/commit/${encodeURIComponent(branch)}`;
-          const headerLine = JSON.stringify({ key: 'header', value: { summary: commitMessage } });
-          const fileLine = JSON.stringify({
-            key: 'file',
-            value: {
-              content: utf8ToBase64(jsonPayloadString),
-              path: 'update.json',
-              encoding: 'base64'
-            }
-          });
-          const ndjsonBody = `${headerLine}\n${fileLine}\n`;
-
-          const res = await fetch(commitUrl, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/x-ndjson'
-            },
-            body: ndjsonBody
-          });
-          if (!res.ok) {
-            const errDetail = await res.text();
-            throw new Error(`HTTP ${res.status}: ${errDetail}`);
+        const commitUrl = `https://huggingface.co/api/datasets/${repo}/commit/${encodeURIComponent(branch)}`;
+        const headerLine = JSON.stringify({ key: 'header', value: { summary: commitMessage } });
+        const fileLine = JSON.stringify({
+          key: 'file',
+          value: {
+            content: utf8ToBase64(jsonPayloadString),
+            path: 'update.json',
+            encoding: 'base64'
           }
+        });
+        const ndjsonBody = `${headerLine}\n${fileLine}\n`;
+
+        const res = await fetch(commitUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/x-ndjson'
+          },
+          body: ndjsonBody
+        });
+        if (!res.ok) {
+          const errDetail = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errDetail}`);
         }
 
         statusEl.textContent = 'Đã lưu lên Hugging Face ✓';
