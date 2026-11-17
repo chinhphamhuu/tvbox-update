@@ -29,6 +29,13 @@
   <!-- Thư viện đọc thông tin file .APK trực tiếp trên trình duyệt -->
   <script src="https://unpkg.com/app-info-parser/dist/app-info-parser.min.js"></script>
 
+  <!-- Thư viện chính thức của Hugging Face Hub hỗ trợ đẩy file APK lớn tới 50GB trực tiếp từ trình duyệt -->
+  <script type="module">
+    import { uploadFiles, uploadFilesWithProgress } from 'https://esm.sh/@huggingface/hub@2.17.11';
+    window.hfUploadFiles = uploadFiles;
+    window.hfUploadFilesWithProgress = uploadFilesWithProgress;
+  </script>
+
   <style>
     body {
       background-color: #0f172a;
@@ -137,7 +144,7 @@
             KHU VỰC 1
           </span>
           <h2 class="text-base sm:text-lg font-bold text-white">
-            Cấu Hình Kết Nối (GitHub &amp; Firebase Realtime Database)
+            Cấu Hình Kết Nối (Hugging Face Hub 50GB &amp; Firebase Realtime Database)
           </h2>
         </div>
         <button onclick="toggleConfigSection()" id="btnToggleConfig"
@@ -148,22 +155,22 @@
 
       <div id="configPanelBody" class="p-5 space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- GitHub Repo -->
+          <!-- Hugging Face Repo -->
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              GitHub Repo (username/repo) <span class="text-red-400">*</span>
+              Hugging Face Repo (Dataset) <span class="text-red-400">*</span>
             </label>
-            <input type="text" id="cfgGithubRepo" value="chinhphamhuu/tvbox-update" placeholder="vd: chinhphamhuu/tvbox-update"
+            <input type="text" id="cfgGithubRepo" value="Chinhpham75/tvbox-update" placeholder="vd: Chinhpham75/tvbox-update"
               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
           </div>
 
-          <!-- GitHub Token -->
+          <!-- Hugging Face Write Token -->
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              GitHub Personal Access Token <span class="text-red-400">*</span>
+              Hugging Face Write Token (hf_...) <span class="text-red-400">*</span>
             </label>
             <div class="relative">
-              <input type="password" id="cfgGithubToken" value="" placeholder="Mở khóa bằng mã PIN hoặc dán Token..."
+              <input type="password" id="cfgGithubToken" value="" placeholder="Mở khóa bằng mã PIN 123456..."
                 class="w-full pl-3.5 pr-16 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
               <button type="button" onclick="toggleTokenVisibility()"
                 class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 hover:text-white">
@@ -172,10 +179,10 @@
             </div>
           </div>
 
-          <!-- GitHub Branch -->
+          <!-- Branch -->
           <div>
             <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Nhánh GitHub (Branch)
+              Nhánh (Branch)
             </label>
             <input type="text" id="cfgGithubBranch" value="main" placeholder="main"
               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
@@ -284,19 +291,19 @@
             <div class="grid grid-cols-2 gap-2">
               <button type="button" id="btnModeGithub" onclick="setUploadMode('github')"
                 class="px-3 py-2 rounded-xl text-xs font-bold border border-sky-500 bg-sky-500/20 text-sky-300 transition text-center">
-                Chế độ 1: Đẩy APK lên GitHub
+                Chế độ 1: Đẩy lên Hugging Face (50GB)
               </button>
               <button type="button" id="btnModeDirect" onclick="setUploadMode('direct')"
                 class="px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900 text-slate-400 hover:text-white transition text-center">
-                Chế độ 2: Dán link R2 / Ngoài
+                Chế độ 2: Dán link ngoài
               </button>
             </div>
 
-            <!-- Khung đẩy file lên thư mục apk/ của GitHub (Chế độ 1) -->
+            <!-- Khung đẩy file lên thư mục apk/ của Hugging Face (Chế độ 1) -->
             <div id="githubUploadBox" class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
               <div class="flex items-center justify-between gap-2">
                 <span class="text-xs text-slate-300">
-                  Tự động đẩy lên GitHub (Hỗ trợ cả APK nặng <b>100MB – 500MB</b>):
+                  Kho <b>Hugging Face LFS</b> (Hỗ trợ nguyên 1 file <b>100MB – 50GB</b>):
                 </span>
                 <button type="button" id="btnUploadApkToGithub" onclick="uploadSelectedApkToGithub()"
                   class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shrink-0">
@@ -304,27 +311,17 @@
                 </button>
               </div>
               <p class="text-[11px] text-slate-400">
-                * Chỉ cần chọn file APK rồi bấm thẳng nút màu xanh <b>"Lưu vào danh sách &amp; Commit lên GitHub"</b> ở dưới. Nếu file nặng 100MB – 500MB, hệ thống sẽ <b>tự động cắt nhỏ từng phần (18MB/phần)</b> đẩy lên GitHub và TV Box tự ghép lại cài đặt!
+                * Chỉ cần chọn file APK (dù 10MB, 200MB hay 2GB) rồi bấm thẳng nút màu xanh <b>"Lưu vào danh sách &amp; Commit"</b> ở dưới. Hệ thống đẩy nguyên 1 file tốc độ cao lên Hugging Face!
               </p>
               <div id="githubUploadProgress" class="hidden text-xs font-medium text-amber-400">
-                Đang tải file APK lên GitHub REST API... Vui lòng đợi...
+                Đang tải file APK lên Hugging Face Hub... Vui lòng đợi...
               </div>
             </div>
 
-            <!-- Khung hướng dẫn & tự điền link cho File APK Lớn 100MB - 2GB (Chế độ 2) -->
+            <!-- Khung hướng dẫn Chế độ 2 -->
             <div id="directUploadBox" class="hidden p-3 rounded-xl bg-slate-900 border border-sky-500/40 space-y-2">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <span class="text-xs font-semibold text-sky-300">
-                  Kho chứa APK nặng (100MB - 2GB) miễn phí trên GitHub Releases:
-                </span>
-                <a href="https://github.com/chinhphamhuu/tvbox-update/releases/edit/apk-2gb" target="_blank"
-                  class="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white transition shrink-0">
-                  ↗ Mở Kho Upload File Lớn (Tới 2GB)
-                </a>
-              </div>
               <p class="text-[11px] text-slate-300 leading-relaxed">
-                1. Chọn file APK nặng ở khung trên để tự lấy Tên gói, Mã bản &amp; <b>tự động điền sẵn link tải</b>.<br/>
-                2. Bấm nút <b>"Mở Kho Upload File Lớn"</b>, kéo thả file APK đó vào mục <i>Attach binaries</i> rồi bấm <b>Update release</b> là xong! (Hoặc dán link từ Cloudflare R2 / Hosting khác).
+                Dán trực tiếp đường dẫn tải file APK từ Cloudflare R2, Google Drive Direct hoặc Hosting riêng vào ô <code class="text-sky-400">apkUrl</code> bên dưới.
               </p>
             </div>
           </div>
@@ -386,7 +383,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M5 13l4 4L19 7" />
             </svg>
-            <span id="btnSubmitAppText">Lưu vào danh sách &amp; Commit lên GitHub</span>
+            <span id="btnSubmitAppText">Lưu vào danh sách &amp; Commit lên Hugging Face</span>
           </button>
         </div>
 
@@ -479,9 +476,9 @@
     // =========================================================================
     // BIẾN TOÀN CỤC LƯU TRẠNG THÁI TRONG PHIÊN LÀM VIỆC
     // =========================================================================
-    const STORAGE_KEY = 'TVBOX_AUTO_UPDATER_ADMIN_CONFIG_V1';
-    // Token được mã hóa XOR+Base64 bằng Mã PIN Quản trị để bảo mật khi public lên GitHub Pages
-    const ENCRYPTED_TOKEN_B64 = 'VlpDa3AFSQdlf094aHFKDHp5WXcCZAFfSFRJDGBGSXEGAgdUSGJpVg==';
+    const STORAGE_KEY = 'TVBOX_AUTO_UPDATER_HF_CONFIG_V2';
+    // Hugging Face Write Token được mã hóa XOR+Base64 bằng Mã PIN Quản trị (123456)
+    const ENCRYPTED_TOKEN_B64 = 'WVRsc1xeUmZxX3J/aFVDTnBsU15/R2NzYWddelxTaXR6Y01YXA==';
 
     function decryptTokenWithPin(pin) {
       try {
@@ -493,7 +490,7 @@
           outBytes[i] = cipherBinary.charCodeAt(i) ^ pinBytes[i % pinBytes.length];
         }
         const plain = new TextDecoder('utf-8').decode(outBytes);
-        return plain.startsWith('ghp_') ? plain : null;
+        return (plain.startsWith('hf_') || plain.startsWith('ghp_')) ? plain : null;
       } catch (e) {
         return null;
       }
@@ -615,21 +612,21 @@
       const { repo, branch } = getConfig();
       const previewEl = document.getElementById('rawJsonUrlPreview');
       if (repo && repo.includes('/')) {
-        previewEl.textContent = `https://raw.githubusercontent.com/${repo}/${branch}/update.json`;
+        previewEl.textContent = `https://huggingface.co/datasets/${repo}/resolve/${branch}/update.json`;
       } else {
-        previewEl.textContent = 'Chưa cấu hình GitHub Repo';
+        previewEl.textContent = 'Chưa cấu hình Hugging Face Repo';
       }
     }
 
     function copyRawUpdateUrl() {
       const { repo, branch } = getConfig();
       if (!repo || !repo.includes('/')) {
-        showToast('Vui lòng nhập GitHub Repo (username/repo) trước!', 'warning');
+        showToast('Vui lòng nhập Hugging Face Repo (username/repo) trước!', 'warning');
         return;
       }
-      const rawUrl = `https://raw.githubusercontent.com/${repo}/${branch}/update.json`;
+      const rawUrl = `https://huggingface.co/datasets/${repo}/${branch ? 'resolve/' + branch : 'resolve/main'}/update.json`;
       navigator.clipboard.writeText(rawUrl).then(() => {
-        showToast('Đã copy link Raw update.json vào bộ nhớ tạm!', 'success');
+        showToast('Đã copy link update.json trên Hugging Face!', 'success');
       });
     }
 
@@ -775,12 +772,7 @@
         summaryName.textContent = `${appLabel} (v${verName} - code ${verCode})`;
         summaryMeta.textContent = `${pkgName} • Dung lượng: ${sizeMb} MB`;
 
-        const partCount = Math.ceil(file.size / (18 * 1024 * 1024));
-        if (partCount > 1) {
-          showToast(`Đã đọc xong APK (${sizeMb} MB). Khi bấm Lưu, hệ thống sẽ tự chia làm ${partCount} phần để đẩy lên GitHub!`, 'success');
-        } else {
-          showToast('Đã đọc thành công thông tin từ file APK! Bấm Lưu để đẩy lên GitHub.', 'success');
-        }
+        showToast(`Đã đọc thành công APK (${sizeMb} MB)! Bấm Lưu để đẩy trực tiếp lên Hugging Face.`, 'success');
       } catch (err) {
         console.error('Lỗi phân tích APK:', err);
         showToast('Không thể đọc tự động cấu trúc APK này, vui lòng kiểm tra và điền thủ công.', 'warning');
@@ -788,56 +780,8 @@
     }
 
     /**
-     * Đẩy 1 file đơn hoặc 1 mảnh (chunk) lên GitHub REST API
-     */
-    async function putSingleBlobToGithub(repo, token, branch, githubPath, blobOrFile, commitMsg) {
-      const apiUrl = `https://api.github.com/repos/${repo}/contents/${githubPath}`;
-      let existingFileSha = null;
-
-      const checkRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github+json'
-        }
-      });
-      if (checkRes.ok) {
-        const existingData = await checkRes.json();
-        existingFileSha = existingData.sha;
-      }
-
-      const base64Content = await fileToBase64(blobOrFile);
-      const bodyPayload = {
-        message: commitMsg,
-        content: base64Content,
-        branch: branch
-      };
-      if (existingFileSha) {
-        bodyPayload.sha = existingFileSha;
-      }
-
-      const putRes = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(bodyPayload)
-      });
-
-      if (!putRes.ok) {
-        const errText = await putRes.text();
-        throw new Error(`GitHub API HTTP ${putRes.status}: ${errText}`);
-      }
-
-      return `https://raw.githubusercontent.com/${repo}/${branch}/${githubPath}`;
-    }
-
-    /**
-     * Đẩy file .apk đã chọn lên thư mục apk/ của GitHub Repo.
-     * - Nếu file <= 18MB: Đẩy nguyên 1 file.
-     * - Nếu file > 18MB (VD: 100MB, 200MB, 500MB): Tự động cắt nhỏ thành các phần 18MB (.part001, .part002...)
-     *   để vượt qua giới hạn dung lượng của GitHub, sau đó TV Box tự tải nối lại thành 1 file hoàn chỉnh!
+     * Đẩy file .apk đã chọn (hỗ trợ nguyên 1 file từ vài MB đến 50GB) lên Hugging Face Datasets
+     * thông qua thư viện chính thức @huggingface/hub (tự động xử lý LFS/Xet Multipart).
      */
     async function uploadSelectedApkToGithub(onProgressCallback = null) {
       if (!selectedApkFile) {
@@ -847,7 +791,7 @@
 
       const { repo, token, branch } = getConfig();
       if (!repo || !token) {
-        showToast('Vui lòng nhập GitHub Repo và Token ở Khu vực 1!', 'error');
+        showToast('Vui lòng nhập Hugging Face Repo và Token ở Khu vực 1!', 'error');
         return false;
       }
 
@@ -858,68 +802,55 @@
 
       try {
         const safeFileName = selectedApkFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const CHUNK_SIZE = 18 * 1024 * 1024; // 18 MB mỗi phần
+        const hfPath = `apk/${safeFileName}`;
         const totalSize = selectedApkFile.size;
         const sizeMb = (totalSize / (1024 * 1024)).toFixed(1);
 
-        if (totalSize <= CHUNK_SIZE) {
-          const msg = `Đang đẩy file APK (${sizeMb} MB) lên GitHub...`;
-          progressText.textContent = msg;
-          if (onProgressCallback) onProgressCallback(msg);
+        const initMsg = `Đang đẩy APK (${sizeMb} MB) lên Hugging Face: 0%...`;
+        progressText.textContent = initMsg;
+        if (onProgressCallback) onProgressCallback(initMsg);
 
-          const rawApkUrl = await putSingleBlobToGithub(
-            repo,
-            token,
-            branch,
-            `apk/${safeFileName}`,
-            selectedApkFile,
-            `Upload APK ${safeFileName} (${sizeMb} MB)`
-          );
-
-          uploadedApkParts = [];
-          uploadedApkTotalSize = totalSize;
-          document.getElementById('inpApkUrl').value = rawApkUrl;
-          selectedApkUploaded = true;
-          showToast('Đã tải file APK lên GitHub thành công!', 'success');
-          return true;
-        } else {
-          // Chia nhỏ file lớn (100MB, 200MB...) thành các phần 18MB
-          const totalParts = Math.ceil(totalSize / CHUNK_SIZE);
-          const partUrls = [];
-
-          for (let partIdx = 0; partIdx < totalParts; partIdx++) {
-            const start = partIdx * CHUNK_SIZE;
-            const end = Math.min(start + CHUNK_SIZE, totalSize);
-            const chunkBlob = selectedApkFile.slice(start, end);
-            const partNumberStr = String(partIdx + 1).padStart(3, '0');
-            const partPath = `apk/${safeFileName}.part${partNumberStr}`;
-            const percent = Math.round(((partIdx + 1) * 100) / totalParts);
-
-            const statusMsg = `Đang đẩy APK lớn (${sizeMb} MB): Phần ${partIdx + 1}/${totalParts} (${percent}%)...`;
-            progressText.textContent = statusMsg;
-            if (onProgressCallback) onProgressCallback(statusMsg);
-
-            const partRawUrl = await putSingleBlobToGithub(
-              repo,
-              token,
-              branch,
-              partPath,
-              chunkBlob,
-              `Upload APK ${safeFileName} part ${partIdx + 1}/${totalParts}`
-            );
-            partUrls.push(partRawUrl);
+        if (window.hfUploadFilesWithProgress) {
+          for await (const progressEvent of window.hfUploadFilesWithProgress({
+            repo: { type: 'dataset', name: repo },
+            credentials: { accessToken: token },
+            branch: branch,
+            commitTitle: `Upload APK ${safeFileName} (${sizeMb} MB)`,
+            files: [
+              { path: hfPath, content: selectedApkFile }
+            ]
+          })) {
+            if (progressEvent.event === 'fileProgress') {
+              const pct = Math.round((progressEvent.progress || 0) * 100);
+              const msg = `Đang đẩy APK (${sizeMb} MB) lên Hugging Face: ${pct}%...`;
+              progressText.textContent = msg;
+              if (onProgressCallback) onProgressCallback(msg);
+            }
           }
-
-          uploadedApkParts = partUrls;
-          uploadedApkTotalSize = totalSize;
-          document.getElementById('inpApkUrl').value = partUrls[0];
-          selectedApkUploaded = true;
-          showToast(`Đã đẩy hoàn tất ${totalParts} phần của file APK (${sizeMb} MB) lên GitHub!`, 'success');
-          return true;
+        } else if (window.hfUploadFiles) {
+          await window.hfUploadFiles({
+            repo: { type: 'dataset', name: repo },
+            credentials: { accessToken: token },
+            branch: branch,
+            commitTitle: `Upload APK ${safeFileName} (${sizeMb} MB)`,
+            files: [
+              { path: hfPath, content: selectedApkFile }
+            ]
+          });
+        } else {
+          throw new Error('Thư viện @huggingface/hub đang tải, vui lòng đợi 2 giây rồi thử lại!');
         }
+
+        const directDownloadUrl = `https://huggingface.co/datasets/${repo}/resolve/${branch}/${hfPath}?download=true`;
+        uploadedApkParts = [];
+        uploadedApkTotalSize = totalSize;
+        document.getElementById('inpApkUrl').value = directDownloadUrl;
+        selectedApkUploaded = true;
+        showToast(`Đã đẩy hoàn tất file APK (${sizeMb} MB) lên Hugging Face!`, 'success');
+        return true;
       } catch (err) {
-        console.error('Lỗi upload APK lên GitHub:', err);
-        showToast(`Lỗi tải APK lên GitHub: ${err.message}`, 'error');
+        console.error('Lỗi upload APK lên Hugging Face:', err);
+        showToast(`Lỗi tải APK lên Hugging Face: ${err.message}`, 'error');
         return false;
       } finally {
         btn.disabled = false;
@@ -928,28 +859,23 @@
     }
 
     /**
-     * Tải nội dung file update.json từ GitHub Repo
+     * Tải nội dung file update.json từ Hugging Face Dataset Repo
      */
     async function loadUpdateJsonFromGithub() {
-      const { repo, token, branch } = getConfig();
-      if (!repo || !token) return;
+      const { repo, branch } = getConfig();
+      if (!repo) return;
 
-      const apiUrl = `https://api.github.com/repos/${repo}/contents/update.json?ref=${encodeURIComponent(branch)}`;
+      const resolveUrl = `https://huggingface.co/datasets/${repo}/resolve/${encodeURIComponent(branch)}/update.json?t=${Date.now()}`;
 
       try {
-        const response = await fetch(apiUrl, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github+json'
-          },
+        const response = await fetch(resolveUrl, {
           cache: 'no-store'
         });
 
         if (response.status === 404) {
           currentAppsList = [];
-          currentUpdateJsonSha = null;
           renderAppsList();
-          showToast('File update.json chưa tồn tại trên Repo. Khi bạn thêm ứng dụng đầu tiên, hệ thống sẽ tự tạo file!', 'info');
+          showToast('File update.json chưa có trên Hugging Face. Khi bạn thêm ứng dụng đầu tiên, hệ thống sẽ tự tạo!', 'info');
           return;
         }
 
@@ -957,92 +883,84 @@
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const data = await response.json();
-        currentUpdateJsonSha = data.sha;
-
-        const decodedJsonStr = base64ToUtf8(data.content || '');
-        const parsedObj = JSON.parse(decodedJsonStr);
+        const parsedObj = await response.json();
         currentAppsList = Array.isArray(parsedObj.apps) ? parsedObj.apps : [];
 
         renderAppsList();
-        renderBoxesList(); // Cập nhật lại màu đối chiếu versionCode ở bảng Box
+        renderBoxesList();
       } catch (err) {
-        console.error('Lỗi đọc update.json:', err);
-        showToast(`Không đọc được update.json từ GitHub: ${err.message}`, 'error');
+        console.error('Lỗi đọc update.json từ Hugging Face:', err);
+        showToast(`Không đọc được update.json từ Hugging Face: ${err.message}`, 'error');
       }
     }
 
     /**
-     * Commit đè nội dung update.json lên GitHub (xử lý chuẩn UTF-8 tiếng Việt)
+     * Commit đè nội dung update.json lên Hugging Face Dataset Repo (xử lý chuẩn UTF-8 tiếng Việt)
      */
     async function commitUpdateJsonToGithub(commitMessage = 'Cập nhật danh sách ứng dụng update.json') {
       const { repo, token, branch } = getConfig();
       if (!repo || !token) {
-        showToast('Vui lòng cấu hình GitHub Repo và Token ở Khu vực 1!', 'error');
+        showToast('Vui lòng cấu hình Hugging Face Repo và Token ở Khu vực 1!', 'error');
         return false;
       }
 
       const statusEl = document.getElementById('githubCommitStatus');
-      statusEl.textContent = 'Đang commit lên GitHub...';
+      statusEl.textContent = 'Đang lưu lên Hugging Face...';
       statusEl.className = 'text-xs text-amber-400 font-semibold';
 
       try {
-        const apiUrl = `https://api.github.com/repos/${repo}/contents/update.json`;
-
-        // Lấy lại SHA mới nhất để tránh lỗi 409 Conflict
-        const latestRes = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github+json'
-          },
-          cache: 'no-store'
-        });
-        if (latestRes.ok) {
-          const latestData = await latestRes.json();
-          currentUpdateJsonSha = latestData.sha;
-        }
-
         const jsonPayloadString = JSON.stringify({ apps: currentAppsList }, null, 2);
-        const base64Utf8 = utf8ToBase64(jsonPayloadString);
 
-        const bodyObj = {
-          message: commitMessage,
-          content: base64Utf8,
-          branch: branch
-        };
-        if (currentUpdateJsonSha) {
-          bodyObj.sha = currentUpdateJsonSha;
+        if (window.hfUploadFiles) {
+          const jsonBlob = new Blob([jsonPayloadString], { type: 'application/json' });
+          await window.hfUploadFiles({
+            repo: { type: 'dataset', name: repo },
+            credentials: { accessToken: token },
+            branch: branch,
+            commitTitle: commitMessage,
+            files: [
+              { path: 'update.json', content: jsonBlob }
+            ]
+          });
+        } else {
+          // Dự phòng gọi trực tiếp Hugging Face NDJSON Commit API
+          const commitUrl = `https://huggingface.co/api/datasets/${repo}/commit/${encodeURIComponent(branch)}`;
+          const headerLine = JSON.stringify({ key: 'header', value: { summary: commitMessage } });
+          const fileLine = JSON.stringify({
+            key: 'file',
+            value: {
+              content: utf8ToBase64(jsonPayloadString),
+              path: 'update.json',
+              encoding: 'base64'
+            }
+          });
+          const ndjsonBody = `${headerLine}\n${fileLine}\n`;
+
+          const res = await fetch(commitUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/x-ndjson'
+            },
+            body: ndjsonBody
+          });
+          if (!res.ok) {
+            const errDetail = await res.text();
+            throw new Error(`HTTP ${res.status}: ${errDetail}`);
+          }
         }
 
-        const putRes = await fetch(apiUrl, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github+json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(bodyObj)
-        });
-
-        if (!putRes.ok) {
-          const errDetail = await putRes.text();
-          throw new Error(`HTTP ${putRes.status}: ${errDetail}`);
-        }
-
-        const putData = await putRes.json();
-        currentUpdateJsonSha = putData.content && putData.content.sha ? putData.content.sha : currentUpdateJsonSha;
-
-        statusEl.textContent = 'Đã lưu lên GitHub ✓';
+        statusEl.textContent = 'Đã lưu lên Hugging Face ✓';
         statusEl.className = 'text-xs text-emerald-400 font-semibold';
-        showToast('Đã cập nhật file update.json trên GitHub thành công!', 'success');
+        showToast('Đã cập nhật file update.json trên Hugging Face thành công!', 'success');
         renderAppsList();
         renderBoxesList();
         return true;
       } catch (err) {
-        console.error('Lỗi commit update.json:', err);
-        statusEl.textContent = 'Lỗi commit GitHub!';
+        console.error('Lỗi commit update.json lên Hugging Face:', err);
+        statusEl.textContent = 'Lỗi lưu Hugging Face!';
         statusEl.className = 'text-xs text-red-400 font-semibold';
-        showToast(`Lỗi ghi update.json lên GitHub: ${err.message}`, 'error');
+        showToast(`Lỗi ghi update.json lên Hugging Face: ${err.message}`, 'error');
         return false;
       }
     }
@@ -1135,7 +1053,7 @@
       document.getElementById('apkFileInput').value = '';
       document.getElementById('parsedApkPreview').classList.add('hidden');
       document.getElementById('formApkTitle').textContent = '+ Thêm / Cập nhật Ứng dụng vào Kho';
-      document.getElementById('btnSubmitAppText').textContent = 'Lưu vào danh sách & Commit lên GitHub';
+      document.getElementById('btnSubmitAppText').textContent = 'Lưu vào danh sách & Commit lên Hugging Face';
       selectedApkFile = null;
       selectedApkUploaded = false;
       uploadedApkParts = [];
