@@ -100,7 +100,7 @@
   <!-- Thông báo Toast nổi -->
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
 
-  <!-- Màn hình Khóa PIN -->
+  <!-- Màn hình Khóa Đăng Nhập -->
   <div id="pinLockModal" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
       <div class="w-12 h-12 rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center mx-auto">
@@ -111,31 +111,41 @@
       </div>
       <h2 class="text-lg font-bold text-white">Đăng Nhập Quản Trị</h2>
       <form onsubmit="unlockWithPin(event)" class="space-y-3">
-        <input type="password" id="pinInput" inputmode="numeric" placeholder="Nhập mã PIN"
-          class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-center text-lg font-bold tracking-widest text-white focus:outline-none focus:border-sky-500" />
-        <button type="submit"
+        <input type="password" id="pinInput" placeholder="Nhập mật khẩu"
+          class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-center text-base font-bold tracking-wider text-white focus:outline-none focus:border-sky-500" />
+        <button type="submit" id="btnUnlockSubmit"
           class="w-full py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg transition">
           Mở Khóa
         </button>
       </form>
       <p id="pinErrorMsg" class="hidden text-xs font-semibold text-red-400">
-        Mã PIN không chính xác!
+        Mật khẩu không chính xác!
       </p>
     </div>
   </div>
 
-  <!-- Modal Cài Đặt Kết Nối (Ẩn trong nút Cài đặt trên thanh menu) -->
+  <!-- Modal Cài Đặt (Cấu Hình Kết Nối & Thiết Lập Mật Khẩu) -->
   <div id="configModal" onclick="if (event.target === this) toggleConfigModal(false)"
     class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden">
-      <div class="px-5 py-4 bg-slate-800/70 border-b border-slate-800 flex items-center justify-between">
-        <h2 class="text-base font-bold text-white">Cấu Hình Kết Nối</h2>
+      <div class="px-5 py-3.5 bg-slate-800/70 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <button type="button" id="tabBtnConn" onclick="switchSettingsTab('conn')"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 transition">
+            Kết nối
+          </button>
+          <button type="button" id="tabBtnPass" onclick="switchSettingsTab('pass')"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition">
+            Mật khẩu
+          </button>
+        </div>
         <button type="button" onclick="toggleConfigModal(false)"
           class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition">
           ✕
         </button>
       </div>
 
+      <!-- TAB 1: CẤU HÌNH KẾT NỐI -->
       <div id="configPanelBody" class="p-5 space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -181,6 +191,43 @@
           <button type="button" onclick="saveConfigAndLoad()" id="btnSaveAndLoad"
             class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg transition shrink-0">
             Lưu &amp; Tải dữ liệu
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 2: THIẾT LẬP MẬT KHẨU ĐĂNG NHẬP -->
+      <div id="passwordPanelBody" class="hidden p-5 space-y-4">
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Mật khẩu hiện tại</label>
+            <input type="password" id="inpOldPass"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Mật khẩu mới</label>
+              <input type="password" id="inpNewPass"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Xác nhận mật khẩu mới</label>
+              <input type="password" id="inpConfirmPass"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-800">
+          <button type="button" onclick="lockAndLogout()"
+            class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 transition">
+            Khóa / Đăng xuất
+          </button>
+
+          <button type="button" onclick="changeAdminPassword()" id="btnChangePass"
+            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg transition">
+            Lưu mật khẩu mới
           </button>
         </div>
       </div>
@@ -378,14 +425,28 @@
     // Hugging Face Write Token được mã hóa XOR+Base64 bằng Mã PIN Quản trị (123456)
     const ENCRYPTED_TOKEN_B64 = 'WVRsc1xeUmZxX3J/aFVDTnBsU15/R2NzYWddelxTaXR6Y01YXA==';
 
-    function decryptTokenWithPin(pin) {
+    function encryptTokenWithPass(plainToken, pass) {
+      const tokenBytes = new TextEncoder().encode(plainToken.trim());
+      const passBytes = new TextEncoder().encode(pass.trim());
+      const outBytes = new Uint8Array(tokenBytes.length);
+      for (let i = 0; i < tokenBytes.length; i++) {
+        outBytes[i] = tokenBytes[i] ^ passBytes[i % passBytes.length];
+      }
+      let binary = '';
+      for (let i = 0; i < outBytes.length; i++) {
+        binary += String.fromCharCode(outBytes[i]);
+      }
+      return btoa(binary);
+    }
+
+    function decryptTokenWithCipher(cipherB64, pass) {
       try {
-        const cipherBinary = atob(ENCRYPTED_TOKEN_B64);
-        const pinBytes = new TextEncoder().encode(pin.trim());
-        if (pinBytes.length === 0) return null;
+        const cipherBinary = atob(cipherB64);
+        const passBytes = new TextEncoder().encode(pass.trim());
+        if (passBytes.length === 0) return null;
         const outBytes = new Uint8Array(cipherBinary.length);
         for (let i = 0; i < cipherBinary.length; i++) {
-          outBytes[i] = cipherBinary.charCodeAt(i) ^ pinBytes[i % pinBytes.length];
+          outBytes[i] = cipherBinary.charCodeAt(i) ^ passBytes[i % passBytes.length];
         }
         const plain = new TextDecoder('utf-8').decode(outBytes);
         return (plain.startsWith('hf_') || plain.startsWith('ghp_')) ? plain : null;
@@ -394,21 +455,181 @@
       }
     }
 
-    function unlockWithPin(event) {
+    function decryptTokenWithPin(pin) {
+      return decryptTokenWithCipher(ENCRYPTED_TOKEN_B64, pin);
+    }
+
+    async function computeStringSha256Hex(str) {
+      try {
+        if (!window.crypto || !window.crypto.subtle) return '';
+        const buf = new TextEncoder().encode(str.trim());
+        const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+        return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      } catch (e) {
+        return '';
+      }
+    }
+
+    async function fetchRemoteAdminAuth() {
+      const { firebaseUrl } = getConfig();
+      if (!firebaseUrl) return null;
+      try {
+        const res = await fetch(`${firebaseUrl}/adminAuth.json`, { cache: 'no-store' });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return (data && typeof data === 'object' && data.encToken) ? data : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function unlockWithPin(event) {
       if (event) event.preventDefault();
       const pinVal = document.getElementById('pinInput').value.trim();
       const errEl = document.getElementById('pinErrorMsg');
-      const token = decryptTokenWithPin(pinVal);
+      const btn = document.getElementById('btnUnlockSubmit');
+      if (!pinVal) return;
 
-      if (!token) {
-        errEl.classList.remove('hidden');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Đang xác thực...';
+      }
+
+      try {
+        const remoteAuth = await fetchRemoteAdminAuth();
+        let token = null;
+
+        if (remoteAuth && remoteAuth.encToken) {
+          // Đã có mật khẩu riêng lưu trên Firebase -> chỉ chấp nhận mật khẩu mới
+          token = decryptTokenWithCipher(remoteAuth.encToken, pinVal);
+          if (token && remoteAuth.passHash) {
+            const enteredHash = await computeStringSha256Hex(pinVal);
+            if (enteredHash && enteredHash !== remoteAuth.passHash) {
+              token = null;
+            }
+          }
+        } else {
+          // Chưa đổi mật khẩu -> dùng mật khẩu mặc định gắn sẵn
+          token = decryptTokenWithPin(pinVal);
+        }
+
+        if (!token) {
+          errEl.classList.remove('hidden');
+          return;
+        }
+
+        errEl.classList.add('hidden');
+        document.getElementById('pinInput').value = '';
+        document.getElementById('cfgGithubToken').value = token;
+        document.getElementById('pinLockModal').classList.add('hidden');
+        saveConfigAndLoad();
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Mở Khóa';
+        }
+      }
+    }
+
+    function switchSettingsTab(tabName) {
+      const connPanel = document.getElementById('configPanelBody');
+      const passPanel = document.getElementById('passwordPanelBody');
+      const btnConn = document.getElementById('tabBtnConn');
+      const btnPass = document.getElementById('tabBtnPass');
+
+      if (tabName === 'pass') {
+        connPanel.classList.add('hidden');
+        passPanel.classList.remove('hidden');
+        btnPass.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 transition';
+        btnConn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition';
+      } else {
+        passPanel.classList.add('hidden');
+        connPanel.classList.remove('hidden');
+        btnConn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 transition';
+        btnPass.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition';
+      }
+    }
+
+    async function changeAdminPassword() {
+      const oldPass = document.getElementById('inpOldPass').value.trim();
+      const newPass = document.getElementById('inpNewPass').value.trim();
+      const confirmPass = document.getElementById('inpConfirmPass').value.trim();
+      const { token, firebaseUrl } = getConfig();
+
+      if (!oldPass || !newPass || !confirmPass) {
+        showToast('Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới!', 'warning');
+        return;
+      }
+      if (newPass.length < 4) {
+        showToast('Mật khẩu mới phải có ít nhất 4 ký tự!', 'warning');
+        return;
+      }
+      if (newPass !== confirmPass) {
+        showToast('Xác nhận mật khẩu mới không khớp!', 'error');
+        return;
+      }
+      if (!token || !firebaseUrl) {
+        showToast('Chưa có kết nối Token hoặc Firebase!', 'error');
         return;
       }
 
-      errEl.classList.add('hidden');
-      document.getElementById('cfgGithubToken').value = token;
-      document.getElementById('pinLockModal').classList.add('hidden');
-      saveConfigAndLoad();
+      const btn = document.getElementById('btnChangePass');
+      btn.disabled = true;
+      btn.textContent = 'Đang lưu...';
+
+      try {
+        // Kiểm tra mật khẩu hiện tại có khớp không
+        const remoteAuth = await fetchRemoteAdminAuth();
+        const activeCipher = (remoteAuth && remoteAuth.encToken) ? remoteAuth.encToken : ENCRYPTED_TOKEN_B64;
+        const verifiedToken = decryptTokenWithCipher(activeCipher, oldPass);
+
+        if (!verifiedToken) {
+          showToast('Mật khẩu hiện tại không đúng!', 'error');
+          return;
+        }
+
+        // Mã hóa lại Token bằng mật khẩu mới & lưu lên Firebase để đồng bộ mọi thiết bị
+        const newEncToken = encryptTokenWithPass(token, newPass);
+        const passHash = await computeStringSha256Hex(newPass);
+
+        const res = await fetch(`${firebaseUrl}/adminAuth.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            encToken: newEncToken,
+            passHash: passHash,
+            updatedAt: new Date().toLocaleString('vi-VN')
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        document.getElementById('inpOldPass').value = '';
+        document.getElementById('inpNewPass').value = '';
+        document.getElementById('inpConfirmPass').value = '';
+        toggleConfigModal(false);
+        showToast('Đã cập nhật mật khẩu mới thành công!', 'success');
+      } catch (err) {
+        console.error('Lỗi đổi mật khẩu:', err);
+        showToast(`Lỗi khi lưu mật khẩu: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Lưu mật khẩu mới';
+      }
+    }
+
+    function lockAndLogout() {
+      const cfg = getConfig();
+      cfg.token = '';
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+      document.getElementById('cfgGithubToken').value = '';
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinErrorMsg').classList.add('hidden');
+      toggleConfigModal(false);
+      document.getElementById('pinLockModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('pinInput').focus(), 150);
     }
 
     let currentAppsList = [];          // Mảng apps trong update.json
@@ -1402,8 +1623,8 @@
       }).join('');
     }
 
-    // Tự động nạp cấu hình từ localStorage (hoặc hiện màn hình nhập mã PIN nếu mở lần đầu trên 4G/điện thoại)
-    window.addEventListener('DOMContentLoaded', () => {
+    // Tự động nạp cấu hình từ localStorage (hoặc hiện màn hình đăng nhập nếu chưa mở khóa)
+    window.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('cfgGithubRepo').addEventListener('input', updateRawUrlPreview);
       document.getElementById('cfgGithubBranch').addEventListener('input', updateRawUrlPreview);
 
@@ -1411,12 +1632,15 @@
       updateRawUrlPreview();
 
       let currentToken = document.getElementById('cfgGithubToken').value.trim();
-      // Nếu mở trực tiếp file admin.html trên ổ cứng máy tính (file://), tự động mở khóa luôn không cần hỏi PIN
+      // Nếu mở trực tiếp từ ổ cứng (file://) và CHƯA từng đổi mật khẩu trên Firebase -> tự mở khóa nhanh
       if (!currentToken && window.location.protocol === 'file:') {
-        const autoToken = decryptTokenWithPin('123456');
-        if (autoToken) {
-          document.getElementById('cfgGithubToken').value = autoToken;
-          currentToken = autoToken;
+        const remoteAuth = await fetchRemoteAdminAuth();
+        if (!remoteAuth) {
+          const autoToken = decryptTokenWithPin('123456');
+          if (autoToken) {
+            document.getElementById('cfgGithubToken').value = autoToken;
+            currentToken = autoToken;
+          }
         }
       }
 
