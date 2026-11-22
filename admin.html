@@ -56,37 +56,42 @@
 
   <!-- ================= HEADER BAR ================= -->
   <header class="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 shadow-lg">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-md shadow-sky-500/20">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-md shadow-sky-500/20 shrink-0">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </div>
-        <div>
-          <h1 class="text-lg sm:text-xl font-bold text-white tracking-tight">
-            TV Box Auto-Updater <span class="text-sky-400">Admin Panel</span>
-          </h1>
-          <p class="text-xs text-slate-400">
-            Quản lý kho ứng dụng <code class="text-sky-300">update.json</code> &amp; điều khiển quyền truy cập TV Box qua Firebase
-          </p>
-        </div>
+        <h1 class="text-base sm:text-lg font-bold text-white tracking-tight">
+          Quản Trị <span class="text-sky-400">TV Box</span>
+        </h1>
       </div>
 
-      <div class="flex items-center gap-2 self-end sm:self-auto">
+      <div class="flex items-center gap-2">
         <span id="connectionStatusBadge"
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
+          class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
           <span class="w-2 h-2 rounded-full bg-amber-400"></span>
           Chưa đồng bộ
         </span>
         <button onclick="syncAllData()"
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition shadow">
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white transition shadow">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Làm mới dữ liệu
+          <span class="hidden sm:inline">Làm mới</span>
+        </button>
+        <button onclick="toggleConfigModal(true)" title="Cấu hình kết nối"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>Cài đặt</span>
         </button>
       </div>
     </div>
@@ -95,76 +100,55 @@
   <!-- Thông báo Toast nổi -->
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
 
-  <!-- Màn hình Khóa Bảo Mật Quản Trị Viên (Chống người lạ truy cập khi Public lên mạng & Bảo vệ GitHub Token) -->
+  <!-- Màn hình Khóa PIN -->
   <div id="pinLockModal" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
-      <div class="w-14 h-14 rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center mx-auto">
-        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="w-12 h-12 rounded-2xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center mx-auto">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
       </div>
-      <div>
-        <h2 class="text-lg font-bold text-white">Xác Thực Quản Trị Viên</h2>
-        <p class="text-xs text-slate-400 mt-1">
-          Nhập Mã PIN Quản trị để tự động mở khóa kết nối GitHub &amp; Firebase trên thiết bị này
-        </p>
-      </div>
+      <h2 class="text-lg font-bold text-white">Đăng Nhập Quản Trị</h2>
       <form onsubmit="unlockWithPin(event)" class="space-y-3">
-        <input type="password" id="pinInput" inputmode="numeric" placeholder="Nhập mã PIN (6 số)..."
+        <input type="password" id="pinInput" inputmode="numeric" placeholder="Nhập mã PIN"
           class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-center text-lg font-bold tracking-widest text-white focus:outline-none focus:border-sky-500" />
         <button type="submit"
           class="w-full py-3 rounded-xl text-sm font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg transition">
-          Mở Khóa &amp; Đăng Nhập
+          Mở Khóa
         </button>
       </form>
       <p id="pinErrorMsg" class="hidden text-xs font-semibold text-red-400">
-        Mã PIN không chính xác, vui lòng thử lại!
+        Mã PIN không chính xác!
       </p>
     </div>
   </div>
 
-  <!-- ================= MAIN CONTAINER ================= -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-8">
-
-    <!-- ========================================================================= -->
-    <!-- KHU VỰC 1: CẤU HÌNH KẾT NỐI GITHUB & FIREBASE (TỰ LƯU LOCALSTORAGE)       -->
-    <!-- ========================================================================= -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-      <div class="px-5 py-4 bg-slate-800/60 border-b border-slate-800 flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">
-            KHU VỰC 1
-          </span>
-          <h2 class="text-base sm:text-lg font-bold text-white">
-            Cấu Hình Kết Nối (Hugging Face Hub 50GB &amp; Firebase Realtime Database)
-          </h2>
-        </div>
-        <button onclick="toggleConfigSection()" id="btnToggleConfig"
-          class="text-xs text-slate-400 hover:text-white underline">
-          Thu gọn / Mở rộng
+  <!-- Modal Cài Đặt Kết Nối (Ẩn trong nút Cài đặt trên thanh menu) -->
+  <div id="configModal" onclick="if (event.target === this) toggleConfigModal(false)"
+    class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden">
+      <div class="px-5 py-4 bg-slate-800/70 border-b border-slate-800 flex items-center justify-between">
+        <h2 class="text-base font-bold text-white">Cấu Hình Kết Nối</h2>
+        <button type="button" onclick="toggleConfigModal(false)"
+          class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition">
+          ✕
         </button>
       </div>
 
       <div id="configPanelBody" class="p-5 space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Hugging Face Repo -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Hugging Face Repo (Dataset) <span class="text-red-400">*</span>
-            </label>
-            <input type="text" id="cfgGithubRepo" value="Chinhpham75/tvbox-update" placeholder="vd: Chinhpham75/tvbox-update"
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Kho lưu trữ (Repo)</label>
+            <input type="text" id="cfgGithubRepo" value="Chinhpham75/tvbox-update"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
           </div>
 
-          <!-- Hugging Face Write Token -->
           <div>
-            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Hugging Face Write Token (hf_...) <span class="text-red-400">*</span>
-            </label>
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Access Token</label>
             <div class="relative">
-              <input type="password" id="cfgGithubToken" value="" placeholder="Mở khóa bằng mã PIN 123456..."
-                class="w-full pl-3.5 pr-16 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+              <input type="password" id="cfgGithubToken" value=""
+                class="w-full pl-3.5 pr-16 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
               <button type="button" onclick="toggleTokenVisibility()"
                 class="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs px-2 py-1 rounded bg-slate-800 text-slate-300 hover:text-white">
                 Hiện/Ẩn
@@ -172,103 +156,78 @@
             </div>
           </div>
 
-          <!-- Branch -->
           <div>
-            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Nhánh (Branch)
-            </label>
-            <input type="text" id="cfgGithubBranch" value="main" placeholder="main"
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Nhánh</label>
+            <input type="text" id="cfgGithubBranch" value="main"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
           </div>
 
-          <!-- Firebase Database URL -->
           <div>
-            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Firebase Database URL <span class="text-red-400">*</span>
-            </label>
-            <input type="url" id="cfgFirebaseUrl" value="https://tvbox-updater-default-rtdb.firebaseio.com" placeholder="https://tvbox-updater-default-rtdb.firebaseio.com"
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+            <label class="block text-xs font-semibold text-slate-400 mb-1.5">Firebase URL</label>
+            <input type="url" id="cfgFirebaseUrl" value="https://tvbox-updater-default-rtdb.firebaseio.com"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
           </div>
         </div>
 
-        <!-- Thanh hiển thị link Raw update.json & Nút Lưu -->
-        <div class="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-800/80">
-          <div class="flex items-center gap-2 text-xs text-slate-400 break-all">
-            <span class="font-semibold text-slate-300 shrink-0">Link Raw update.json:</span>
-            <code id="rawJsonUrlPreview" class="px-2 py-1 rounded bg-slate-950 text-sky-400 border border-slate-800">
-              Chưa cấu hình GitHub Repo
-            </code>
+        <div class="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-800">
+          <div class="flex items-center gap-2 text-xs text-slate-400 min-w-0">
+            <code id="rawJsonUrlPreview" class="px-2 py-1 rounded bg-slate-950 text-sky-400 border border-slate-800 truncate"></code>
             <button type="button" onclick="copyRawUpdateUrl()"
-              class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 shrink-0 transition">
-              Copy Link
+              class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 shrink-0 transition">
+              Copy
             </button>
           </div>
 
           <button type="button" onclick="saveConfigAndLoad()" id="btnSaveAndLoad"
-            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg shadow-sky-500/20 transition shrink-0">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-            </svg>
+            class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg transition shrink-0">
             Lưu &amp; Tải dữ liệu
           </button>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
 
-    <!-- ========================================================================= -->
-    <!-- KHU VỰC 2: QUẢN LÝ KHO APK & TỰ ĐỘNG CẬP NHẬT update.json                 -->
-    <!-- ========================================================================= -->
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+    <!-- ================= QUẢN LÝ KHO ỨNG DỤNG ================= -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-      <div class="px-5 py-4 bg-slate-800/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div class="flex items-center gap-2.5">
-          <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-            KHU VỰC 2
-          </span>
-          <h2 class="text-base sm:text-lg font-bold text-white">
-            Quản Lý Kho APK &amp; Tự Động Cập Nhật <code class="text-emerald-400">update.json</code>
-          </h2>
-        </div>
-        <span id="apkCountBadge" class="text-xs font-semibold text-slate-400">
-          Tổng số: 0 ứng dụng
-        </span>
+      <div class="px-5 py-3.5 bg-slate-800/60 border-b border-slate-800 flex items-center justify-between gap-2">
+        <h2 class="text-base sm:text-lg font-bold text-white">Quản Lý Kho Ứng Dụng</h2>
+        <span id="apkCountBadge" class="text-xs font-semibold text-slate-400">0 ứng dụng</span>
       </div>
 
       <div class="p-5 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        <!-- CỘT TRÁI (5/12): FORM THÊM / SỬA ỨNG DỤNG & BỘ PHÂN TÍCH APK -->
+        <!-- FORM THÊM / SỬA ỨNG DỤNG -->
         <div class="lg:col-span-5 bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
           <div class="flex items-center justify-between border-b border-slate-800 pb-3">
             <h3 id="formApkTitle" class="text-sm font-bold text-sky-400 uppercase tracking-wider">
-              + Thêm / Cập nhật Ứng dụng vào Kho
+              Thêm / Cập Nhật Ứng Dụng
             </h3>
             <button type="button" onclick="resetApkForm()"
               class="text-xs text-slate-400 hover:text-white">
-              Làm mới form
+              Làm mới
             </button>
           </div>
 
-          <!-- Hộp chọn file APK để tự động phân tích bằng app-info-parser -->
+          <!-- Chọn file APK -->
           <div class="border-2 border-dashed border-slate-700 hover:border-sky-500 rounded-xl p-4 text-center transition bg-slate-900/50">
             <input type="file" id="apkFileInput" accept=".apk" class="hidden" onchange="handleApkFileSelected(event)" />
-            <label for="apkFileInput" class="cursor-pointer flex flex-col items-center justify-center space-y-2">
-              <div class="w-12 h-12 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <label for="apkFileInput" class="cursor-pointer flex flex-col items-center justify-center space-y-1.5">
+              <div class="w-10 h-10 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </div>
               <div class="text-sm font-semibold text-white">
-                Chọn file <span class="text-sky-400">.APK</span> từ máy tính / điện thoại
+                Chọn file <span class="text-sky-400">.APK</span>
               </div>
-              <p class="text-xs text-slate-400">
-                Tự động bóc tách Tên ứng dụng, Package Name &amp; Version Code
-              </p>
             </label>
 
-            <!-- Thông tin file APK sau khi đọc -->
             <div id="parsedApkPreview" class="hidden mt-3 pt-3 border-t border-slate-800 flex items-center gap-3 text-left">
-              <img id="parsedApkIcon" src="" alt="APK Icon" class="w-11 h-11 rounded-xl bg-slate-800 object-contain shrink-0" />
+              <img id="parsedApkIcon" src="" alt="APK Icon" class="w-10 h-10 rounded-xl bg-slate-800 object-contain shrink-0" />
               <div class="min-w-0 flex-1">
                 <div id="parsedApkSummaryName" class="text-sm font-bold text-emerald-400 truncate"></div>
                 <div id="parsedApkSummaryMeta" class="text-xs text-slate-400 truncate"></div>
@@ -276,94 +235,60 @@
             </div>
           </div>
 
-          <!-- Chế độ lưu trữ APK (2 chế độ theo yêu cầu) -->
+          <!-- Chọn nguồn tải -->
           <div class="space-y-2">
-            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Chế độ cung cấp link tải APK (apkUrl)
-            </label>
             <div class="grid grid-cols-2 gap-2">
               <button type="button" id="btnModeGithub" onclick="setUploadMode('github')"
                 class="px-3 py-2 rounded-xl text-xs font-bold border border-sky-500 bg-sky-500/20 text-sky-300 transition text-center">
-                Chế độ 1: Đẩy lên Hugging Face (50GB)
+                Tải file lên kho
               </button>
               <button type="button" id="btnModeDirect" onclick="setUploadMode('direct')"
                 class="px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900 text-slate-400 hover:text-white transition text-center">
-                Chế độ 2: Dán link ngoài
+                Dán link ngoài
               </button>
             </div>
-
-            <!-- Khung đẩy file lên thư mục apk/ của Hugging Face (Chế độ 1) -->
-            <div id="githubUploadBox" class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-xs text-slate-300">
-                  Kho <b>Hugging Face LFS</b> (Hỗ trợ nguyên 1 file <b>100MB – 50GB</b>):
-                </span>
-                <button type="button" id="btnUploadApkToGithub" onclick="uploadSelectedApkToGithub()"
-                  class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shrink-0">
-                  Đẩy APK trước
-                </button>
-              </div>
-              <p class="text-[11px] text-slate-400">
-                * Chỉ cần chọn file APK (dù 10MB, 200MB hay 2GB) rồi bấm thẳng nút màu xanh <b>"Lưu vào danh sách &amp; Commit"</b> ở dưới. Hệ thống đẩy nguyên 1 file tốc độ cao lên Hugging Face!
-              </p>
-              <div id="githubUploadProgress" class="hidden text-xs font-medium text-amber-400">
-                Đang tải file APK lên Hugging Face Hub... Vui lòng đợi...
-              </div>
+            <div id="githubUploadBox" class="hidden">
+              <button type="button" id="btnUploadApkToGithub" onclick="uploadSelectedApkToGithub()" class="hidden"></button>
             </div>
-
-            <!-- Khung hướng dẫn Chế độ 2 -->
-            <div id="directUploadBox" class="hidden p-3 rounded-xl bg-slate-900 border border-sky-500/40 space-y-2">
-              <p class="text-[11px] text-slate-300 leading-relaxed">
-                Dán trực tiếp đường dẫn tải file APK từ Cloudflare R2, Google Drive Direct hoặc Hosting riêng vào ô <code class="text-sky-400">apkUrl</code> bên dưới.
-              </p>
-            </div>
+            <div id="directUploadBox" class="hidden"></div>
+            <div id="githubUploadProgress" class="hidden text-xs font-medium text-amber-400 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2"></div>
           </div>
 
           <!-- Các trường thông tin ứng dụng -->
           <div class="space-y-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">
-                Tên ứng dụng hiển thị (<code class="text-sky-400">name</code>) <span class="text-red-400">*</span>
-              </label>
-              <input type="text" id="inpAppName" placeholder="VD: HDO Box Xem Phim"
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Tên ứng dụng</label>
+              <input type="text" id="inpAppName"
                 class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div class="sm:col-span-2">
-                <label class="block text-xs font-semibold text-slate-300 mb-1">
-                  Tên gói (<code class="text-sky-400">packageName</code>) <span class="text-red-400">*</span>
-                </label>
-                <input type="text" id="inpPackageName" placeholder="com.phim.hdobox"
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Tên gói</label>
+                <input type="text" id="inpPackageName"
                   class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono text-white focus:outline-none focus:border-sky-500" />
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">
-                  Mã bản (<code class="text-sky-400">versionCode</code>) <span class="text-red-400">*</span>
-                </label>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Mã bản</label>
                 <input type="number" id="inpVersionCode" min="1" value="1"
                   class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm font-mono text-white focus:outline-none focus:border-sky-500" />
               </div>
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">
-                Link tải trực tiếp file APK (<code class="text-sky-400">apkUrl</code>)
-              </label>
-              <input type="url" id="inpApkUrl" placeholder="https://... (Có thể để trống nếu chọn action = uninstall)"
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Link tải APK</label>
+              <input type="url" id="inpApkUrl"
                 class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500" />
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">
-                Hành động xử lý trên TV Box (<code class="text-sky-400">action</code>)
-              </label>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">Hành động</label>
               <select id="inpAppAction"
                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500">
-                <option value="update">update — Cập nhật đè nếu bản mới hơn (hoặc cài mới nếu chưa có)</option>
-                <option value="install">install — Cài đặt mới nếu chưa có trên Box</option>
-                <option value="uninstall">uninstall — Tự động gỡ bỏ ứng dụng cũ/lỗi khỏi Box</option>
+                <option value="update">Cập nhật / Cài mới</option>
+                <option value="install">Cài đặt mới</option>
+                <option value="uninstall">Gỡ bỏ ứng dụng</option>
               </select>
             </div>
           </div>
@@ -376,22 +301,20 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M5 13l4 4L19 7" />
             </svg>
-            <span id="btnSubmitAppText">Lưu vào danh sách &amp; Commit lên Hugging Face</span>
+            <span id="btnSubmitAppText">Lưu &amp; Cập Nhật</span>
           </button>
         </div>
 
-        <!-- CỘT PHẢI (7/12): DANH SÁCH ỨNG DỤNG ĐANG CÓ TRONG update.json -->
+        <!-- DANH SÁCH ỨNG DỤNG -->
         <div class="lg:col-span-7 flex flex-col">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">
-              Danh sách ứng dụng hiện tại trong <code class="text-sky-400">update.json</code>
-            </h3>
+            <h3 class="text-sm font-bold text-slate-200 uppercase tracking-wider">Danh Sách Ứng Dụng</h3>
             <span id="githubCommitStatus" class="text-xs text-slate-400"></span>
           </div>
 
           <div id="appsListContainer" class="space-y-3 flex-1">
             <div class="p-8 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-slate-400 text-sm">
-              Hãy nhập cấu hình ở Khu vực 1 và bấm <b>"Lưu &amp; Tải dữ liệu"</b> để nạp danh sách ứng dụng.
+              Chưa có ứng dụng nào.
             </div>
           </div>
         </div>
@@ -399,36 +322,19 @@
       </div>
     </section>
 
-    <!-- ========================================================================= -->
-    <!-- KHU VỰC 3: QUẢN LÝ DANH SÁCH TV BOX CỦA KHÁCH HÀNG (FIREBASE)             -->
-    <!-- ========================================================================= -->
+    <!-- ================= QUẢN LÝ DANH SÁCH TV BOX KHÁCH HÀNG ================= -->
     <section class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-      <div class="px-5 py-4 bg-slate-800/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div class="flex items-center gap-2.5">
-          <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">
-            KHU VỰC 3
-          </span>
-          <h2 class="text-base sm:text-lg font-bold text-white">
-            Quản Lý Danh Sách TV Box Khách Hàng (<code class="text-purple-400">/boxes</code> trên Firebase)
-          </h2>
-        </div>
+      <div class="px-5 py-3.5 bg-slate-800/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 class="text-base sm:text-lg font-bold text-white">Danh Sách TV Box Khách Hàng</h2>
 
-        <!-- Thống kê nhanh -->
         <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
-          <span id="statTotalBoxes" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200">
-            Tổng: 0 Box
-          </span>
-          <span id="statAllowedBoxes" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            Đang mở: 0
-          </span>
-          <span id="statBlockedBoxes" class="px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30">
-            Đang khóa: 0
-          </span>
+          <span id="statTotalBoxes" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200">Tổng: 0</span>
+          <span id="statAllowedBoxes" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Đang mở: 0</span>
+          <span id="statBlockedBoxes" class="px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30">Đang khóa: 0</span>
         </div>
       </div>
 
       <div class="p-5 space-y-4">
-        <!-- Thanh tìm kiếm & Bộ lọc trạng thái -->
         <div class="flex flex-col sm:flex-row gap-3">
           <div class="relative flex-1">
             <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -436,27 +342,26 @@
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input type="text" id="searchBoxInput" oninput="renderBoxesList()"
-              placeholder="Tìm theo Tên khách hàng, Ghi chú bảo hành, Mã Box ID hoặc Dòng máy..."
+              placeholder="Tìm kiếm..."
               class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500" />
           </div>
 
           <select id="filterBoxStatus" onchange="renderBoxesList()"
             class="px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:outline-none focus:border-sky-500">
-            <option value="all">Tất cả trạng thái</option>
-            <option value="allowed">Đang hoạt động (Cho phép cập nhật)</option>
-            <option value="blocked">Đang bị khóa (Chặn cập nhật)</option>
+            <option value="all">Tất cả</option>
+            <option value="allowed">Đang mở</option>
+            <option value="blocked">Đang khóa</option>
           </select>
 
           <button type="button" onclick="loadBoxesFromFirebase()"
             class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-semibold text-slate-200 transition shrink-0">
-            Tải lại danh sách Box
+            Tải lại
           </button>
         </div>
 
-        <!-- Danh sách / Bảng hiển thị các TV Box -->
         <div id="boxesListContainer" class="space-y-3">
           <div class="p-8 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-slate-400 text-sm">
-            Chưa có dữ liệu TV Box. Hãy cấu hình Firebase Database URL và bấm <b>"Lưu &amp; Tải dữ liệu"</b>.
+            Chưa có thiết bị nào.
           </div>
         </div>
       </div>
@@ -628,9 +533,18 @@
       input.type = input.type === 'password' ? 'text' : 'password';
     }
 
+    function toggleConfigModal(show) {
+      const modal = document.getElementById('configModal');
+      if (!modal) return;
+      if (typeof show === 'boolean') {
+        modal.classList.toggle('hidden', !show);
+      } else {
+        modal.classList.toggle('hidden');
+      }
+    }
+
     function toggleConfigSection() {
-      const body = document.getElementById('configPanelBody');
-      body.classList.toggle('hidden');
+      toggleConfigModal();
     }
 
     function loadSavedConfigFromLocalStorage() {
@@ -654,7 +568,8 @@
       const cfg = getConfig();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
       updateRawUrlPreview();
-      showToast('Đã lưu cấu hình vào trình duyệt. Đang tải dữ liệu...', 'info');
+      toggleConfigModal(false);
+      showToast('Đã lưu cấu hình. Đang tải dữ liệu...', 'info');
       await syncAllData();
     }
 
@@ -694,21 +609,9 @@
       if (mode === 'github') {
         btnGithub.className = 'px-3 py-2 rounded-xl text-xs font-bold border border-sky-500 bg-sky-500/20 text-sky-300 transition text-center';
         btnDirect.className = 'px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900 text-slate-400 hover:text-white transition text-center';
-        githubBox.classList.remove('hidden');
-        if (directBox) directBox.classList.add('hidden');
       } else {
         btnDirect.className = 'px-3 py-2 rounded-xl text-xs font-bold border border-sky-500 bg-sky-500/20 text-sky-300 transition text-center';
         btnGithub.className = 'px-3 py-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-900 text-slate-400 hover:text-white transition text-center';
-        githubBox.classList.add('hidden');
-        if (directBox) directBox.classList.remove('hidden');
-
-        // Nếu đã chọn file APK, tự động gợi ý sẵn link tải trực tiếp từ GitHub Releases (tag apk-2gb)
-        const { repo } = getConfig();
-        const urlInput = document.getElementById('inpApkUrl');
-        if (selectedApkFile && repo && !urlInput.value.trim()) {
-          const releaseSafeName = selectedApkFile.name.replace(/\s+/g, '.');
-          urlInput.value = `https://github.com/${repo}/releases/download/apk-2gb/${releaseSafeName}`;
-        }
       }
     }
 
@@ -1136,8 +1039,8 @@
       document.getElementById('editingIndex').value = '-1';
       document.getElementById('apkFileInput').value = '';
       document.getElementById('parsedApkPreview').classList.add('hidden');
-      document.getElementById('formApkTitle').textContent = '+ Thêm / Cập nhật Ứng dụng vào Kho';
-      document.getElementById('btnSubmitAppText').textContent = 'Lưu vào danh sách & Commit lên Hugging Face';
+      document.getElementById('formApkTitle').textContent = 'Thêm / Cập Nhật Ứng Dụng';
+      document.getElementById('btnSubmitAppText').textContent = 'Lưu & Cập Nhật';
       selectedApkFile = null;
       selectedApkUploaded = false;
       uploadedApkParts = [];
@@ -1156,7 +1059,7 @@
       document.getElementById('editingIndex').value = String(index);
 
       document.getElementById('formApkTitle').textContent = `Đang sửa: ${app.name}`;
-      document.getElementById('btnSubmitAppText').textContent = 'Cập nhật thay đổi & Commit lên GitHub';
+      document.getElementById('btnSubmitAppText').textContent = 'Cập Nhật Thay Đổi';
       document.getElementById('inpAppName').focus();
     }
 
@@ -1183,12 +1086,12 @@
     function renderAppsList() {
       const container = document.getElementById('appsListContainer');
       const countBadge = document.getElementById('apkCountBadge');
-      countBadge.textContent = `Tổng số: ${currentAppsList.length} ứng dụng`;
+      countBadge.textContent = `${currentAppsList.length} ứng dụng`;
 
       if (currentAppsList.length === 0) {
         container.innerHTML = `
           <div class="p-8 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-slate-400 text-sm">
-            Kho ứng dụng <code class="text-sky-400">update.json</code> hiện đang trống. Hãy chọn file APK bên trái để thêm ứng dụng đầu tiên.
+            Chưa có ứng dụng nào.
           </div>
         `;
         return;
@@ -1507,7 +1410,16 @@
       loadSavedConfigFromLocalStorage();
       updateRawUrlPreview();
 
-      const currentToken = document.getElementById('cfgGithubToken').value.trim();
+      let currentToken = document.getElementById('cfgGithubToken').value.trim();
+      // Nếu mở trực tiếp file admin.html trên ổ cứng máy tính (file://), tự động mở khóa luôn không cần hỏi PIN
+      if (!currentToken && window.location.protocol === 'file:') {
+        const autoToken = decryptTokenWithPin('123456');
+        if (autoToken) {
+          document.getElementById('cfgGithubToken').value = autoToken;
+          currentToken = autoToken;
+        }
+      }
+
       if (!currentToken) {
         document.getElementById('pinLockModal').classList.remove('hidden');
         setTimeout(() => document.getElementById('pinInput').focus(), 150);
